@@ -36,7 +36,10 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState<3 | 6 | 12>(6);
 
   useEffect(() => {
-    if (!company?.id) return;
+    if (!company?.id) {
+      setLoading(false);
+      return;
+    }
     getTransactions(company.id)
       .then(setTransactions)
       .finally(() => setLoading(false));
@@ -82,6 +85,16 @@ export default function ReportsPage() {
       `financial-report-${format(now, 'yyyy-MM-dd')}`
     );
   };
+
+  if (!company?.id) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+        <BarChart3 className="w-12 h-12 mb-3" />
+        <p className="text-lg font-medium text-gray-600 dark:text-gray-300">No company selected</p>
+        <p className="text-sm mt-1">Reports are generated per company.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

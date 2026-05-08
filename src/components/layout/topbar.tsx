@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, Bell, Moon, Sun, LogOut, ChevronDown, Check, CheckCheck } from 'lucide-react';
+import { Menu, Bell, Moon, Sun, LogOut, ChevronDown, Check, CheckCheck, UserCircle, Settings } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { useRouter } from 'next/navigation';
@@ -186,11 +186,19 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               </div>
               <div className="p-1">
                 <Link
+                  href="/profile"
+                  onClick={() => setUserOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                >
+                  <UserCircle className="w-4 h-4" />
+                  My Profile
+                </Link>
+                <Link
                   href="/settings"
                   onClick={() => setUserOpen(false)}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
                 >
-                  <Menu className="w-4 h-4" />
+                  <Settings className="w-4 h-4" />
                   Settings
                 </Link>
                 <button

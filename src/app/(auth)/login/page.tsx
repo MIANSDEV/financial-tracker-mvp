@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
+import { useAuthStore } from '@/store/auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,6 +21,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setLoading: setAuthLoading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +35,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // Tell the dashboard layout to wait (show spinner) while onAuthStateChanged
+      // fires and the auth-provider fetches the user from Firestore.
+      // Without this, the dashboard sees loading:false + user:null and
+      // immediately redirects back to /login before the user is set.
+      setAuthLoading(true);
       router.push('/dashboard');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;

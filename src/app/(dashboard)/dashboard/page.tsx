@@ -70,7 +70,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!company?.id) return;
+    if (!company?.id) {
+      setLoading(false);
+      return;
+    }
     getTransactions(company.id)
       .then(setTransactions)
       .finally(() => setLoading(false));
@@ -104,6 +107,23 @@ export default function DashboardPage() {
   const recentTxns = [...transactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
+
+  if (!company?.id) {
+    return (
+      <div className="space-y-6">
+        <SetupBanner />
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'},{' '}
+            {user?.name?.split(' ')[0]}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            You&apos;re logged in as Super Admin. Manage companies from the Companies page.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -14,6 +14,8 @@ import {
   X,
   Shield,
   BarChart3,
+  CreditCard,
+  UserCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth';
@@ -32,17 +34,19 @@ const navItems: NavItem[] = [
     icon: LayoutDashboard,
     roles: ['super_admin', 'admin', 'staff'],
   },
+  // Transactions, Reports, Users, Audit Logs are company-scoped.
+  // super_admin has no companyId so these pages are not relevant to them.
   {
     label: 'Transactions',
     href: '/transactions',
     icon: ArrowUpDown,
-    roles: ['super_admin', 'admin', 'staff'],
+    roles: ['admin', 'staff'],
   },
   {
     label: 'Reports',
     href: '/reports',
     icon: BarChart3,
-    roles: ['super_admin', 'admin'],
+    roles: ['admin'],
   },
   {
     label: 'Companies',
@@ -51,21 +55,33 @@ const navItems: NavItem[] = [
     roles: ['super_admin'],
   },
   {
+    label: 'Subscriptions',
+    href: '/subscriptions',
+    icon: CreditCard,
+    roles: ['super_admin'],
+  },
+  {
     label: 'Users',
     href: '/users',
     icon: Users,
-    roles: ['super_admin', 'admin'],
+    roles: ['admin'],
   },
   {
     label: 'Audit Logs',
     href: '/audit-logs',
     icon: FileText,
-    roles: ['super_admin', 'admin'],
+    roles: ['admin'],
   },
   {
     label: 'Notifications',
     href: '/notifications',
     icon: Bell,
+    roles: ['super_admin', 'admin', 'staff'],
+  },
+  {
+    label: 'My Profile',
+    href: '/profile',
+    icon: UserCircle,
     roles: ['super_admin', 'admin', 'staff'],
   },
   {

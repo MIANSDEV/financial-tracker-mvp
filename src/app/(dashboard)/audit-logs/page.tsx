@@ -25,7 +25,10 @@ export default function AuditLogsPage() {
   const canView = user?.role === 'super_admin' || user?.role === 'admin';
 
   useEffect(() => {
-    if (!company?.id || !canView) return;
+    if (!company?.id || !canView) {
+      setLoading(false);
+      return;
+    }
     getAuditLogs(company.id, 100)
       .then(setLogs)
       .finally(() => setLoading(false));

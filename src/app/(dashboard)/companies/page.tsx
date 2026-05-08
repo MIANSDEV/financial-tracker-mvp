@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Building2, Trash2, Pencil, Users } from 'lucide-react';
+import { Plus, Building2, Trash2, Pencil, Users, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +16,8 @@ import {
   updateCompany,
   deleteCompany,
   createUser,
+  createSubscriptionPayment,
+  createNotification,
 } from '@/lib/firebase/firestore';
 import type { Company } from '@/types';
 import { SUBSCRIPTION_PLANS } from '@/types';
@@ -43,6 +45,7 @@ export default function CompaniesPage() {
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   // All hooks must be called before any early return
   const {
@@ -95,8 +98,38 @@ export default function CompaniesPage() {
         companyId,
       });
 
+      // Auto-create a pending payment record for the first billing cycle
+      const plan = SUBSCRIPTION_PLANS[data.subscriptionPlan];
+      if (plan.price > 0) {
+        const now = new Date();
+        await createSubscriptionPayment({
+          companyId,
+          companyName: data.name,
+          plan: data.subscriptionPlan,
+          amount: plan.price,
+          status: 'pending',
+          dueDate: expiresAt,
+          paidAt: null,
+          periodStart: now,
+          periodEnd: expiresAt,
+        });
+      }
+
+      // Notify super admin
+      if (user?.id) {
+        await createNotification({
+          userId: user.id,
+          title: 'New company created',
+          message: `${data.name} has been added on the ${data.subscriptionPlan} plan.`,
+          type: 'system',
+          read: false,
+          timestamp: new Date(),
+        });
+      }
+
       toast.success('Company created successfully');
       reset();
+      setShowAdminPassword(false);
       setModalOpen(false);
       const updated = await getAllCompanies();
       setCompanies(updated);
@@ -108,12 +141,22 @@ export default function CompaniesPage() {
     }
   };
 
-  const handleToggleStatus = async (company: Company) => {
-    const newStatus = company.status === 'active' ? 'inactive' : 'active';
-    await updateCompany(company.id, { status: newStatus });
+  const handleToggleStatus = async (c: Company) => {
+    const newStatus = c.status === 'active' ? 'inactive' : 'active';
+    await updateCompany(c.id, { status: newStatus });
     setCompanies((prev) =>
-      prev.map((c) => (c.id === company.id ? { ...c, status: newStatus } : c))
+      prev.map((co) => (co.id === c.id ? { ...co, status: newStatus } : co))
     );
+    if (user?.id) {
+      await createNotification({
+        userId: user.id,
+        title: `Company ${newStatus}`,
+        message: `${c.name} has been set to ${newStatus}.`,
+        type: 'system',
+        read: false,
+        timestamp: new Date(),
+      });
+    }
     toast.success(`Company ${newStatus}`);
   };
 
@@ -296,7 +339,6 @@ export default function CompaniesPage() {
                   {[
                     { name: 'adminName', label: 'Admin Name', type: 'text', placeholder: 'John Doe' },
                     { name: 'adminEmail', label: 'Admin Email', type: 'email', placeholder: 'admin@acme.com' },
-                    { name: 'adminPassword', label: 'Admin Password', type: 'password', placeholder: 'Min 8 characters' },
                   ].map(({ name, label, type, placeholder }) => (
                     <div key={name}>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
@@ -311,6 +353,29 @@ export default function CompaniesPage() {
                       )}
                     </div>
                   ))}
+
+                  {/* Admin Password with eye toggle */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Admin Password</label>
+                    <div className="relative">
+                      <input
+                        {...register('adminPassword')}
+                        type={showAdminPassword ? 'text' : 'password'}
+                        placeholder="Min 8 characters"
+                        className="w-full px-4 py-2.5 pr-10 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                      >
+                        {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {errors.adminPassword && (
+                      <p className="mt-1 text-xs text-red-500">{errors.adminPassword.message}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -95,6 +95,12 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
     }
 
+    // ── Subscription Payments ─────────────────────────────────────────────────
+
+    match /subscription_payments/{paymentId} {
+      allow read, write: if isSuperAdmin();
+    }
+
     // ── Audit Logs ────────────────────────────────────────────────────────────
 
     match /audit_logs/{logId} {

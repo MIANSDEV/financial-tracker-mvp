@@ -38,7 +38,10 @@ export default function TransactionsPage() {
   const canEdit = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff';
 
   const fetchTransactions = async () => {
-    if (!company?.id) return;
+    if (!company?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await getTransactions(company.id);
@@ -164,6 +167,18 @@ export default function TransactionsPage() {
 
   const totalIncome = filtered.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = filtered.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+
+  if (!company?.id) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+        <ArrowUpDown className="w-12 h-12 mb-3" />
+        <p className="text-lg font-medium text-gray-600 dark:text-gray-300">No company selected</p>
+        <p className="text-sm mt-1 text-center max-w-xs">
+          Super admins manage the platform. Transactions belong to individual companies.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

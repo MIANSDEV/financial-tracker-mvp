@@ -27,6 +27,7 @@ import type {
   Notification,
   NotificationSettings,
   AuditLog,
+  SubscriptionPayment,
 } from '@/types';
 
 // ── Converters ──────────────────────────────────────────────────────────────
@@ -277,6 +278,64 @@ export async function upsertNotificationSettings(
 }
 
 // ── Audit Logs ────────────────────────────────────────────────────────────────
+
+// ── Subscription Payments ─────────────────────────────────────────────────────
+
+export async function createSubscriptionPayment(
+  data: Omit<SubscriptionPayment, 'id' | 'createdAt'>
+): Promise<string> {
+  const ref = await addDoc(collection(db, 'subscription_payments'), {
+    ...data,
+    dueDate: Timestamp.fromDate(new Date(data.dueDate)),
+    paidAt: data.paidAt ? Timestamp.fromDate(new Date(data.paidAt)) : null,
+    periodStart: Timestamp.fromDate(new Date(data.periodStart)),
+    periodEnd: Timestamp.fromDate(new Date(data.periodEnd)),
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function getAllSubscriptionPayments(): Promise<SubscriptionPayment[]> {
+  const q = query(
+    collection(db, 'subscription_payments'),
+    orderBy('createdAt', 'desc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      ...data,
+      id: d.id,
+      dueDate: toDate(data.dueDate),
+      paidAt: data.paidAt ? toDate(data.paidAt) : null,
+      periodStart: toDate(data.periodStart),
+      periodEnd: toDate(data.periodEnd),
+      createdAt: toDate(data.createdAt),
+    };
+  }) as SubscriptionPayment[];
+}
+
+export async function markPaymentPaid(paymentId: string, companyId: string, periodEnd: Date) {
+  await updateDoc(doc(db, 'subscription_payments', paymentId), {
+    status: 'paid',
+    paidAt: serverTimestamp(),
+  });
+  // Extend company subscription to the end of the paid period
+  await updateDoc(doc(db, 'companies', companyId), {
+    subscriptionExpiresAt: Timestamp.fromDate(periodEnd),
+    status: 'active',
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateSubscriptionPayment(
+  paymentId: string,
+  data: Partial<Pick<SubscriptionPayment, 'status' | 'notes' | 'dueDate'>>
+) {
+  const update: Record<string, unknown> = { ...data };
+  if (data.dueDate) update.dueDate = Timestamp.fromDate(new Date(data.dueDate));
+  await updateDoc(doc(db, 'subscription_payments', paymentId), update);
+}
 
 export async function createAuditLog(data: Omit<AuditLog, 'id' | 'timestamp'>) {
   await addDoc(collection(db, 'audit_logs'), {

@@ -1,8 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, Moon, Sun, Shield, Save, Smartphone } from 'lucide-react';
+import { Bell, Moon, Sun, Shield, Save, Smartphone, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/auth';
@@ -72,6 +78,11 @@ export default function SettingsPage() {
   const [fcmLoading, setFcmLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // Password change state
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
+
   useEffect(() => {
     setMounted(true);
     if (!user?.id) return;
@@ -109,6 +120,42 @@ export default function SettingsPage() {
     }
   };
 
+  const handlePasswordChange = async () => {
+    if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+    if (pwForm.next.length < 8) {
+      toast.error('New password must be at least 8 characters');
+      return;
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    const currentUser = auth.currentUser;
+    if (!currentUser?.email) return;
+    setPwSaving(true);
+    try {
+      const credential = EmailAuthProvider.credential(currentUser.email, pwForm.current);
+      await reauthenticateWithCredential(currentUser, credential);
+      await updatePassword(currentUser, pwForm.next);
+      toast.success('Password changed successfully');
+      setPwForm({ current: '', next: '', confirm: '' });
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        toast.error('Current password is incorrect');
+      } else if (code === 'auth/too-many-requests') {
+        toast.error('Too many attempts. Try again later');
+      } else {
+        toast.error('Failed to change password');
+      }
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
   const updateType = (type: keyof NotificationSettings['types'], value: boolean) => {
     setSettings((s) => ({
       ...s,
@@ -141,6 +188,52 @@ export default function SettingsPage() {
                 {user?.role?.replace('_', ' ')}
               </span>
             </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Change Password */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-brand-600" />
+            Change Password
+          </CardTitle>
+        </CardHeader>
+        <div className="space-y-3">
+          {([
+            { key: 'current', label: 'Current Password' },
+            { key: 'next',    label: 'New Password' },
+            { key: 'confirm', label: 'Confirm New Password' },
+          ] as { key: keyof typeof pwForm; label: string }[]).map(({ key, label }) => (
+            <div key={key}>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+              <div className="relative">
+                <input
+                  type={showPw[key] ? 'text' : 'password'}
+                  value={pwForm[key]}
+                  onChange={(e) => setPwForm((f) => ({ ...f, [key]: e.target.value }))}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 pr-10 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((s) => ({ ...s, [key]: !s[key] }))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  {showPw[key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          ))}
+          <div className="pt-1">
+            <Button
+              onClick={handlePasswordChange}
+              loading={pwSaving}
+              leftIcon={<KeyRound className="w-4 h-4" />}
+            >
+              Update Password
+            </Button>
           </div>
         </div>
       </Card>

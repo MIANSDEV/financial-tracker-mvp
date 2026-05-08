@@ -8,6 +8,23 @@ export type TransactionType = 'income' | 'expense';
 
 export type NotificationType = 'system' | 'financial' | 'activity' | 'reports';
 
+export type PaymentStatus = 'paid' | 'pending' | 'overdue';
+
+export interface SubscriptionPayment {
+  id: string;
+  companyId: string;
+  companyName: string;
+  plan: SubscriptionPlan;
+  amount: number;
+  status: PaymentStatus;
+  dueDate: Date;
+  paidAt: Date | null;
+  periodStart: Date;
+  periodEnd: Date;
+  notes?: string;
+  createdAt: Date;
+}
+
 export interface User {
   id: string;
   name: string;

@@ -52,7 +52,10 @@ export default function UsersPage() {
   });
 
   const fetchUsers = async () => {
-    if (!company?.id) return;
+    if (!company?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const data = await getCompanyUsers(company.id);
     setUsers(data);
