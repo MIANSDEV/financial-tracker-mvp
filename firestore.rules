@@ -1,0 +1,106 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // Fetch caller's Firestore user doc (cached per request by rules engine)
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function myRole() {
+      return isAuth() ? me().role : '';
+    }
+
+    function myCompany() {
+      return isAuth() ? me().companyId : null;
+    }
+
+    function isSuperAdmin() {
+      return myRole() == 'super_admin';
+    }
+
+    function isAdminOrAbove() {
+      return myRole() == 'super_admin' || myRole() == 'admin';
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      // Reading own document never needs a role lookup — avoids circular get()
+      allow get: if isAuth() && uid() == userId;
+
+      // Admins reading other users
+      allow get:    if isAdminOrAbove();
+      allow list:   if isAdminOrAbove();
+      allow create: if isAdminOrAbove();
+      allow update: if isAuth() && (uid() == userId || isAdminOrAbove());
+      allow delete: if isAdminOrAbove();
+    }
+
+    // ── Companies ─────────────────────────────────────────────────────────────
+
+    match /companies/{companyId} {
+      allow get:    if isAuth() && (isSuperAdmin() || myCompany() == companyId);
+      allow list:   if isSuperAdmin();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // ── Transactions ──────────────────────────────────────────────────────────
+
+    match /transactions/{txId} {
+      // get: check document's companyId against caller's companyId
+      allow get: if isAuth() && (
+        isSuperAdmin() || resource.data.companyId == myCompany()
+      );
+      // list: caller is authenticated — query itself is filtered by companyId
+      allow list:   if isAuth();
+      allow create: if isAuth() && request.resource.data.companyId == myCompany();
+      allow update: if isAuth() && (
+        isAdminOrAbove() || resource.data.createdBy == uid()
+      );
+      allow delete: if isAdminOrAbove();
+    }
+
+    // ── Notifications ─────────────────────────────────────────────────────────
+
+    match /notifications/{nId} {
+      // get: check userId field on the document
+      allow get: if isAuth() && (
+        resource.data.userId == uid() || isAdminOrAbove()
+      );
+      // list: authenticated — query is filtered by userId
+      allow list:   if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && resource.data.userId == uid();
+      allow delete: if isAuth() && (
+        resource.data.userId == uid() || isAdminOrAbove()
+      );
+    }
+
+    // ── Notification Settings ─────────────────────────────────────────────────
+
+    match /notification_settings/{settingsId} {
+      allow read, write: if isAuth() && uid() == settingsId;
+      allow read: if isSuperAdmin();
+    }
+
+    // ── Audit Logs ────────────────────────────────────────────────────────────
+
+    match /audit_logs/{logId} {
+      allow get, list: if isAdminOrAbove();
+      allow create:    if isAuth() && request.resource.data.userId == uid();
+      allow update, delete: if false;
+    }
+  }
+}

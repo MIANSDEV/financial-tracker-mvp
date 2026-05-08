@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">
+  <rect width="72" height="72" rx="14.4" fill="#0ea5e9"/>
+  <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
+        font-family="system-ui, sans-serif" font-weight="bold"
+        font-size="25.2" fill="white">FT</text>
+</svg>
