@@ -135,6 +135,18 @@ export async function updateCompany(companyId: string, data: Partial<Company>) {
 }
 
 export async function deleteCompany(companyId: string) {
+  // Remove all user documents belonging to this company
+  const usersSnap = await getDocs(
+    query(collection(db, 'users'), where('companyId', '==', companyId))
+  );
+  await Promise.all(usersSnap.docs.map((d) => deleteDoc(d.ref)));
+
+  // Remove all custom roles for this company
+  const rolesSnap = await getDocs(
+    query(collection(db, 'company_roles'), where('companyId', '==', companyId))
+  );
+  await Promise.all(rolesSnap.docs.map((d) => deleteDoc(d.ref)));
+
   await deleteDoc(doc(db, 'companies', companyId));
 }
 

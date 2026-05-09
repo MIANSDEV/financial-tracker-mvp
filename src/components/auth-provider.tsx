@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { getUser, getCompany, getCompanyRoles } from '@/lib/firebase/firestore';
 import { useAuthStore } from '@/store/auth';
@@ -31,19 +31,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
+        const TIMED_OUT = Symbol('timeout');
         // Add a timeout so "offline" Firestore doesn't hang forever
-        const userData = await Promise.race([
+        const userResult = await Promise.race([
           getUser(firebaseUser.uid),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          new Promise<typeof TIMED_OUT>((resolve) => setTimeout(() => resolve(TIMED_OUT), 8000)),
         ]);
 
-        if (!userData) {
-          // No Firestore doc OR timeout — use Firebase Auth data as fallback
+        if (userResult === TIMED_OUT) {
+          // Firestore unreachable — let the user in with Auth data as fallback
           setUser(buildFallbackUser(firebaseUser));
           setLoading(false);
           return;
         }
 
+        if (!userResult) {
+          // User document was deleted (company removed) — force sign-out
+          await signOut(auth);
+          reset();
+          return;
+        }
+
+        const userData = userResult;
         setUser(userData);
 
         if (userData.companyId) {
@@ -51,7 +60,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             getCompany(userData.companyId),
             getCompanyRoles(userData.companyId),
           ]);
-          if (companyResult.status === 'fulfilled') setCompany(companyResult.value);
+
+          // If company was deleted while this user was active, sign them out
+          if (companyResult.status === 'fulfilled' && !companyResult.value) {
+            await signOut(auth);
+            reset();
+            return;
+          }
+
+          if (companyResult.status === 'fulfilled' && companyResult.value) {
+            setCompany(companyResult.value);
+          }
           if (rolesResult.status === 'fulfilled') setCompanyRoles(rolesResult.value);
         }
       } catch (error: unknown) {
