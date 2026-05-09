@@ -5,7 +5,7 @@ import { Plus, Building2, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createAuthUser } from '@/lib/firebase/config';
+import { createAuthUser, auth } from '@/lib/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -169,6 +169,21 @@ export default function CompaniesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    try {
+      // Delete Firebase Auth accounts for all company users (requires Admin SDK)
+      const token = await auth.currentUser?.getIdToken();
+      await fetch('/api/companies/delete-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ companyId: id }),
+      });
+    } catch {
+      // Non-fatal — Firestore docs will still be cleaned up below
+    }
+
     await deleteCompany(id);
     setCompanies((prev) => prev.filter((c) => c.id !== id));
     setDeleteConfirm(null);

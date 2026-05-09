@@ -39,6 +39,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // Ensure loading=true in the store so the dashboard guard shows the
+      // spinner rather than immediately redirecting to /login before
+      // onAuthStateChanged has a chance to populate the user.
       setAuthLoading(true);
       router.push('/dashboard');
     } catch (err: unknown) {

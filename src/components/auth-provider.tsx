@@ -30,6 +30,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Mark loading=true at the start of every auth check so consumers
+      // (e.g. the login page redirect effect) wait until the entire flow
+      // — including the company fetch — has completed before acting.
+      setLoading(true);
+
       try {
         const TIMED_OUT = Symbol('timeout');
         // Add a timeout so "offline" Firestore doesn't hang forever
@@ -60,13 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             getCompany(userData.companyId),
             getCompanyRoles(userData.companyId),
           ]);
-
-          // If company was deleted while this user was active, sign them out
-          if (companyResult.status === 'fulfilled' && !companyResult.value) {
-            await signOut(auth);
-            reset();
-            return;
-          }
 
           if (companyResult.status === 'fulfilled' && companyResult.value) {
             setCompany(companyResult.value);
