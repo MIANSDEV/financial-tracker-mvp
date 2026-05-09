@@ -23,6 +23,7 @@ import { getTransactions } from '@/lib/firebase/firestore';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Transaction, ChartDataPoint } from '@/types';
 import { subMonths, startOfMonth, endOfMonth, format, eachMonthOfInterval } from 'date-fns';
+import { useT } from '@/lib/i18n/use-t';
 
 const PIE_COLORS = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'];
 
@@ -36,12 +37,12 @@ function buildChartData(transactions: Transaction[], months = 6): ChartDataPoint
   return monthRange.map((month) => {
     const start = startOfMonth(month);
     const end = endOfMonth(month);
-    const monthTxns = transactions.filter((t) => {
-      const d = new Date(t.date);
+    const monthTxns = transactions.filter((tx) => {
+      const d = new Date(tx.date);
       return d >= start && d <= end;
     });
-    const income = monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const expense = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const income = monthTxns.filter((tx) => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0);
+    const expense = monthTxns.filter((tx) => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
     return {
       date: format(month, 'MMM yy'),
       income,
@@ -54,9 +55,9 @@ function buildChartData(transactions: Transaction[], months = 6): ChartDataPoint
 function buildCategoryData(transactions: Transaction[]) {
   const map: Record<string, number> = {};
   transactions
-    .filter((t) => t.type === 'expense')
-    .forEach((t) => {
-      map[t.category] = (map[t.category] || 0) + t.amount;
+    .filter((tx) => tx.type === 'expense')
+    .forEach((tx) => {
+      map[tx.category] = (map[tx.category] || 0) + tx.amount;
     });
   return Object.entries(map)
     .map(([name, value]) => ({ name, value }))
@@ -66,6 +67,7 @@ function buildCategoryData(transactions: Transaction[]) {
 
 export default function DashboardPage() {
   const { user, company } = useAuthStore();
+  const t = useT();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,21 +82,24 @@ export default function DashboardPage() {
   }, [company?.id]);
 
   const now = new Date();
+  const hour = now.getHours();
+  const greet = hour < 12 ? t.dashboard.morningGreet : hour < 18 ? t.dashboard.afternoonGreet : t.dashboard.eveningGreet;
+
   const thisMonthStart = startOfMonth(now);
   const lastMonthStart = startOfMonth(subMonths(now, 1));
   const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
-  const thisMonth = transactions.filter((t) => new Date(t.date) >= thisMonthStart);
+  const thisMonth = transactions.filter((tx) => new Date(tx.date) >= thisMonthStart);
   const lastMonth = transactions.filter(
-    (t) => new Date(t.date) >= lastMonthStart && new Date(t.date) <= lastMonthEnd
+    (tx) => new Date(tx.date) >= lastMonthStart && new Date(tx.date) <= lastMonthEnd
   );
 
-  const income = thisMonth.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expense = thisMonth.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const income = thisMonth.filter((tx) => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0);
+  const expense = thisMonth.filter((tx) => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
   const profit = income - expense;
 
-  const lastIncome = lastMonth.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const lastExpense = lastMonth.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const lastIncome = lastMonth.filter((tx) => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0);
+  const lastExpense = lastMonth.filter((tx) => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
   const lastProfit = lastIncome - lastExpense;
 
   const incomeChange = lastIncome === 0 ? 0 : ((income - lastIncome) / lastIncome) * 100;
@@ -114,11 +119,10 @@ export default function DashboardPage() {
         <SetupBanner />
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'},{' '}
-            {user?.name?.split(' ')[0]}
+            {greet}, {user?.name?.split(' ')[0]}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            You&apos;re logged in as Super Admin. Manage companies from the Companies page.
+            {t.dashboard.superAdminMessage}
           </p>
         </div>
       </div>
@@ -130,39 +134,38 @@ export default function DashboardPage() {
       <SetupBanner />
       <div>
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-          Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'},{' '}
-          {user?.name?.split(' ')[0]} 👋
+          {greet}, {user?.name?.split(' ')[0]} 👋
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          Here&apos;s what&apos;s happening with {company?.name || 'your finances'} this month.
+          {company?.name || ''} · {t.dashboard.thisMonth}
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
-          title="Total Income"
+          title={t.dashboard.totalIncome}
           value={income}
           change={incomeChange}
           icon={<TrendingUp className="w-5 h-5" />}
           color="green"
         />
         <StatCard
-          title="Total Expenses"
+          title={t.dashboard.totalExpenses}
           value={expense}
           change={expenseChange}
           icon={<TrendingDown className="w-5 h-5" />}
           color="red"
         />
         <StatCard
-          title="Net Profit"
+          title={t.dashboard.profit}
           value={profit}
           change={profitChange}
           icon={<DollarSign className="w-5 h-5" />}
           color="blue"
         />
         <StatCard
-          title="Transactions"
+          title={t.dashboard.transactions}
           value={thisMonth.length}
           icon={<Activity className="w-5 h-5" />}
           color="purple"
@@ -175,8 +178,8 @@ export default function DashboardPage() {
         <Card className="xl:col-span-2" padding={false}>
           <div className="p-6 pb-2">
             <CardHeader>
-              <CardTitle>Revenue Overview</CardTitle>
-              <span className="text-xs text-gray-400 dark:text-gray-500">Last 6 months</span>
+              <CardTitle>{t.dashboard.revenueOverview}</CardTitle>
+              <span className="text-xs text-gray-400 dark:text-gray-500">{t.dashboard.lastSixMonths}</span>
             </CardHeader>
           </div>
           <div className="px-2 pb-4">
@@ -197,14 +200,14 @@ export default function DashboardPage() {
                 <YAxis
                   tick={{ fontSize: 12 }}
                   tickLine={false}
-                  tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                  tickFormatter={(v) => `৳${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
                 />
                 <Tooltip
                   formatter={(value: number) => formatCurrency(value)}
                   contentStyle={{ borderRadius: 8, fontSize: 13 }}
                 />
-                <Area type="monotone" dataKey="income" name="Income" stroke="#22c55e" fill="url(#incomeGrad)" strokeWidth={2} />
-                <Area type="monotone" dataKey="expense" name="Expenses" stroke="#ef4444" fill="url(#expenseGrad)" strokeWidth={2} />
+                <Area type="monotone" dataKey="income" name={t.transactions.income} stroke="#22c55e" fill="url(#incomeGrad)" strokeWidth={2} />
+                <Area type="monotone" dataKey="expense" name={t.transactions.expense} stroke="#ef4444" fill="url(#expenseGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -214,7 +217,7 @@ export default function DashboardPage() {
         <Card padding={false}>
           <div className="p-6 pb-2">
             <CardHeader>
-              <CardTitle>Expense Breakdown</CardTitle>
+              <CardTitle>{t.dashboard.expenseBreakdown}</CardTitle>
             </CardHeader>
           </div>
           <div className="px-2 pb-4">
@@ -240,7 +243,7 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-48 text-gray-400 dark:text-gray-600">
-                <p className="text-sm">No expense data</p>
+                <p className="text-sm">{t.dashboard.noExpenseData}</p>
               </div>
             )}
           </div>
@@ -250,7 +253,7 @@ export default function DashboardPage() {
       {/* Recent Transactions */}
       <Card padding={false}>
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
-          <CardTitle>Recent Transactions</CardTitle>
+          <CardTitle>{t.dashboard.recentTransactions}</CardTitle>
         </div>
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -262,33 +265,33 @@ export default function DashboardPage() {
         ) : recentTxns.length === 0 ? (
           <div className="flex flex-col items-center py-12 text-gray-400 dark:text-gray-600">
             <Activity className="w-10 h-10 mb-2" />
-            <p className="text-sm">No transactions yet</p>
+            <p className="text-sm">{t.dashboard.noTransactions}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50 dark:divide-gray-800">
-            {recentTxns.map((t) => (
-              <div key={t.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+            {recentTxns.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${
-                      t.type === 'income'
+                      tx.type === 'income'
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                         : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                     }`}
                   >
-                    {t.type === 'income' ? '+' : '-'}
+                    {tx.type === 'income' ? '+' : '-'}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{t.description}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">{t.category} · {formatDate(t.date)}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{tx.description}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{tx.category} · {formatDate(tx.date)}</p>
                   </div>
                 </div>
                 <span
                   className={`text-sm font-semibold ${
-                    t.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                    tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                   }`}
                 >
-                  {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                 </span>
               </div>
             ))}

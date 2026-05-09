@@ -95,6 +95,15 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
     }
 
+    // ── Company Roles ─────────────────────────────────────────────────────────
+
+    match /company_roles/{roleId} {
+      allow get:  if isAuth() && (isSuperAdmin() || resource.data.companyId == myCompany());
+      allow list: if isAuth();
+      allow create: if isSuperAdmin() || (myRole() == 'admin' && request.resource.data.companyId == myCompany());
+      allow update, delete: if isSuperAdmin() || (myRole() == 'admin' && resource.data.companyId == myCompany());
+    }
+
     // ── Subscription Payments ─────────────────────────────────────────────────
 
     match /subscription_payments/{paymentId} {

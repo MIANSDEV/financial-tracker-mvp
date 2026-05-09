@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth';
 import { getAuditLogs } from '@/lib/firebase/firestore';
 import { formatDateTime, exportToCSV } from '@/lib/utils';
 import type { AuditLog } from '@/types';
+import { useT } from '@/lib/i18n/use-t';
 
 const actionVariant: Record<string, 'success' | 'info' | 'danger' | 'warning'> = {
   CREATE: 'success',
@@ -19,6 +20,7 @@ const actionVariant: Record<string, 'success' | 'info' | 'danger' | 'warning'> =
 
 export default function AuditLogsPage() {
   const { user, company } = useAuthStore();
+  const t = useT();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,7 +40,8 @@ export default function AuditLogsPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-gray-400">
         <FileText className="w-12 h-12 mb-3" />
-        <p className="text-lg font-medium">Access Denied</p>
+        <p className="text-lg font-medium">{t.common.accessDenied}</p>
+        <p className="text-sm mt-1">{t.auditLogs.accessDeniedDesc}</p>
       </div>
     );
   }
@@ -60,11 +63,13 @@ export default function AuditLogsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Audit Logs</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{logs.length} activity records</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.auditLogs.title}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            {logs.length} {t.auditLogs.activityRecords}
+          </p>
         </div>
         <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={handleExport}>
-          Export
+          {t.auditLogs.export}
         </Button>
       </div>
 
@@ -79,14 +84,14 @@ export default function AuditLogsPage() {
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-gray-400 dark:text-gray-600">
             <FileText className="w-10 h-10 mb-3" />
-            <p className="text-sm">No audit logs yet</p>
+            <p className="text-sm">{t.auditLogs.noLogs}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-800">
-                  {['Timestamp', 'User', 'Action', 'Resource', 'Details'].map((h) => (
+                  {[t.auditLogs.timestamp, t.auditLogs.user, t.auditLogs.action, t.auditLogs.resource, t.auditLogs.details].map((h) => (
                     <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{h}</th>
                   ))}
                 </tr>

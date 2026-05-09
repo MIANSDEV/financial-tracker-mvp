@@ -17,14 +17,17 @@ import {
 } from '@/lib/firebase/firestore';
 import { formatCurrency, formatDate, exportToCSV } from '@/lib/utils';
 import type { Transaction } from '@/types';
-import { TRANSACTION_CATEGORIES } from '@/types';
 import toast from 'react-hot-toast';
+import { usePermissions } from '@/lib/permissions';
+import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/utils';
 
 type FilterType = 'all' | 'income' | 'expense';
 
 export default function TransactionsPage() {
   const { user, company } = useAuthStore();
+  const perms = usePermissions();
+  const t = useT();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,8 +37,6 @@ export default function TransactionsPage() {
   const [filterCategory, setFilterCategory] = useState('');
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-
-  const canEdit = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff';
 
   const fetchTransactions = async () => {
     if (!company?.id) {
@@ -172,10 +173,8 @@ export default function TransactionsPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-gray-400">
         <ArrowUpDown className="w-12 h-12 mb-3" />
-        <p className="text-lg font-medium text-gray-600 dark:text-gray-300">No company selected</p>
-        <p className="text-sm mt-1 text-center max-w-xs">
-          Super admins manage the platform. Transactions belong to individual companies.
-        </p>
+        <p className="text-lg font-medium text-gray-600 dark:text-gray-300">{t.transactions.noCompany}</p>
+        <p className="text-sm mt-1 text-center max-w-xs">{t.transactions.noCompanyDesc}</p>
       </div>
     );
   }
@@ -184,18 +183,18 @@ export default function TransactionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Transactions</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.transactions.title}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             {filtered.length} transaction{filtered.length !== 1 ? 's' : ''} · Income: {formatCurrency(totalIncome)} · Expense: {formatCurrency(totalExpense)}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleExport} leftIcon={<Download className="w-4 h-4" />}>
-            Export
+            {t.transactions.export}
           </Button>
-          {canEdit && (
+          {perms.canCreateTransactions && (
             <Button size="sm" onClick={() => { setEditTarget(null); setModalOpen(true); }} leftIcon={<Plus className="w-4 h-4" />}>
-              Add
+              {t.transactions.add}
             </Button>
           )}
         </div>
@@ -209,7 +208,7 @@ export default function TransactionsPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search transactions..."
+              placeholder={t.transactions.searchPlaceholder}
               className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
@@ -228,7 +227,7 @@ export default function TransactionsPage() {
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
                   )}
                 >
-                  {type}
+                  {t.transactions[type]}
                 </button>
               ))}
             </div>
@@ -238,7 +237,7 @@ export default function TransactionsPage() {
               onChange={(e) => setFilterCategory(e.target.value)}
               className="py-1.5 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
-              <option value="">All Categories</option>
+              <option value="">{t.transactions.allCategories}</option>
               {allCategories.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -259,77 +258,81 @@ export default function TransactionsPage() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-gray-400 dark:text-gray-600">
             <ArrowUpDown className="w-10 h-10 mb-3" />
-            <p className="text-sm font-medium">No transactions found</p>
-            <p className="text-xs mt-1">Try adjusting your filters</p>
+            <p className="text-sm font-medium">{t.transactions.noTransactions}</p>
+            <p className="text-xs mt-1">{t.transactions.adjustFilters}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-800">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-                  {canEdit && <th className="px-6 py-3" />}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.date}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.description}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.category}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.type}</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.amount}</th>
+                  {(perms.canEditTransactions || perms.canDeleteTransactions) && <th className="px-6 py-3" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                {filtered.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                {filtered.map((tx) => (
+                  <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                     <td className="px-6 py-3.5 whitespace-nowrap text-gray-500 dark:text-gray-400 text-xs">
-                      {formatDate(t.date)}
+                      {formatDate(tx.date)}
                     </td>
                     <td className="px-6 py-3.5">
-                      <p className="font-medium text-gray-900 dark:text-white">{t.description}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">by {t.createdByName}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{tx.description}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t.transactions.addedBy} {tx.createdByName}</p>
                     </td>
                     <td className="px-6 py-3.5">
-                      <Badge variant="default">{t.category}</Badge>
+                      <Badge variant="default">{tx.category}</Badge>
                     </td>
                     <td className="px-6 py-3.5">
-                      <Badge variant={t.type === 'income' ? 'success' : 'danger'}>
-                        {t.type}
+                      <Badge variant={tx.type === 'income' ? 'success' : 'danger'}>
+                        {tx.type === 'income' ? t.transactions.income : t.transactions.expense}
                       </Badge>
                     </td>
                     <td className={cn(
                       'px-6 py-3.5 text-right font-semibold whitespace-nowrap',
-                      t.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     )}>
-                      {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </td>
-                    {canEdit && (
+                    {(perms.canEditTransactions || perms.canDeleteTransactions) && (
                       <td className="px-6 py-3.5">
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => { setEditTarget(t); setModalOpen(true); }}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          {deleteConfirm === t.id ? (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => handleDelete(t.id)}
-                                className="px-2 py-1 rounded text-xs bg-red-500 text-white hover:bg-red-600"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={() => setDeleteConfirm(null)}
-                                className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
+                          {perms.canEditTransactions && (
                             <button
-                              onClick={() => setDeleteConfirm(t.id)}
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              onClick={() => { setEditTarget(tx); setModalOpen(true); }}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Pencil className="w-4 h-4" />
                             </button>
+                          )}
+                          {perms.canDeleteTransactions && (
+                            deleteConfirm === tx.id ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleDelete(tx.id)}
+                                  className="px-2 py-1 rounded text-xs bg-red-500 text-white hover:bg-red-600"
+                                >
+                                  {t.common.confirm}
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirm(null)}
+                                  className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                >
+                                  {t.common.cancel}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setDeleteConfirm(tx.id)}
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )
                           )}
                         </div>
                       </td>
@@ -348,6 +351,8 @@ export default function TransactionsPage() {
         onSave={handleSave}
         transaction={editTarget}
         loading={saving}
+        incomeCategories={company?.incomeCategories}
+        expenseCategories={company?.expenseCategories}
       />
     </div>
   );

@@ -20,7 +20,6 @@ import { useAuthStore } from '@/store/auth';
 import { getTransactions } from '@/lib/firebase/firestore';
 import { formatCurrency, exportToCSV, formatDate } from '@/lib/utils';
 import type { Transaction } from '@/types';
-import { TRANSACTION_CATEGORIES } from '@/types';
 import {
   subMonths,
   startOfMonth,
@@ -28,9 +27,11 @@ import {
   format,
   eachMonthOfInterval,
 } from 'date-fns';
+import { useT } from '@/lib/i18n/use-t';
 
 export default function ReportsPage() {
-  const { user, company } = useAuthStore();
+  const { company } = useAuthStore();
+  const t = useT();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<3 | 6 | 12>(6);
@@ -54,33 +55,43 @@ export default function ReportsPage() {
   const monthlyData = monthRange.map((month) => {
     const start = startOfMonth(month);
     const end = endOfMonth(month);
-    const monthTxns = transactions.filter((t) => {
-      const d = new Date(t.date);
+    const monthTxns = transactions.filter((tx) => {
+      const d = new Date(tx.date);
       return d >= start && d <= end;
     });
-    const income = monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const expense = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const income = monthTxns.filter((tx) => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0);
+    const expense = monthTxns.filter((tx) => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
     return { month: format(month, 'MMM yy'), income, expense, profit: income - expense };
   });
 
-  const categoryData = TRANSACTION_CATEGORIES.expense.map((cat) => {
-    const total = transactions
-      .filter((t) => t.type === 'expense' && t.category === cat)
-      .reduce((s, t) => s + t.amount, 0);
-    return { category: cat, amount: total };
-  }).filter((d) => d.amount > 0).sort((a, b) => b.amount - a.amount);
+  const categoryData = Array.from(
+    transactions
+      .filter((tx) => tx.type === 'expense')
+      .reduce((map, tx) => {
+        map.set(tx.category, (map.get(tx.category) ?? 0) + tx.amount);
+        return map;
+      }, new Map<string, number>())
+  )
+    .map(([category, amount]) => ({ category, amount }))
+    .sort((a, b) => b.amount - a.amount);
 
-  const totalIncome = transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const totalExpense = transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const totalIncome = transactions.filter((tx) => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0);
+  const totalExpense = transactions.filter((tx) => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
+
+  const periodLabels: Record<number, string> = {
+    3: t.reports.months3,
+    6: t.reports.months6,
+    12: t.reports.months12,
+  };
 
   const handleExport = () => {
     exportToCSV(
-      transactions.map((t) => ({
-        Date: formatDate(t.date),
-        Type: t.type,
-        Category: t.category,
-        Description: t.description,
-        Amount: t.amount,
+      transactions.map((tx) => ({
+        Date: formatDate(tx.date),
+        Type: tx.type,
+        Category: tx.category,
+        Description: tx.description,
+        Amount: tx.amount,
       })),
       `financial-report-${format(now, 'yyyy-MM-dd')}`
     );
@@ -90,8 +101,8 @@ export default function ReportsPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-gray-400">
         <BarChart3 className="w-12 h-12 mb-3" />
-        <p className="text-lg font-medium text-gray-600 dark:text-gray-300">No company selected</p>
-        <p className="text-sm mt-1">Reports are generated per company.</p>
+        <p className="text-lg font-medium text-gray-600 dark:text-gray-300">{t.reports.noCompany}</p>
+        <p className="text-sm mt-1">{t.reports.noCompanyDesc}</p>
       </div>
     );
   }
@@ -100,9 +111,9 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Reports</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.reports.title}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Financial analytics for {company?.name}
+            {t.reports.subtitle} {company?.name}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -117,12 +128,12 @@ export default function ReportsPage() {
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
-                {p}M
+                {periodLabels[p]}
               </button>
             ))}
           </div>
           <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={handleExport}>
-            Export
+            {t.reports.export}
           </Button>
         </div>
       </div>
@@ -130,9 +141,9 @@ export default function ReportsPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: 'Total Income', value: totalIncome, color: 'text-green-600 dark:text-green-400' },
-          { label: 'Total Expenses', value: totalExpense, color: 'text-red-600 dark:text-red-400' },
-          { label: 'Net Profit', value: totalIncome - totalExpense, color: 'text-blue-600 dark:text-blue-400' },
+          { label: t.reports.totalIncome, value: totalIncome, color: 'text-green-600 dark:text-green-400' },
+          { label: t.reports.totalExpenses, value: totalExpense, color: 'text-red-600 dark:text-red-400' },
+          { label: t.reports.netProfit, value: totalIncome - totalExpense, color: 'text-blue-600 dark:text-blue-400' },
         ].map((item) => (
           <div key={item.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{item.label}</p>
@@ -144,18 +155,18 @@ export default function ReportsPage() {
       {/* Monthly Bar Chart */}
       <Card padding={false}>
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
-          <CardTitle>Monthly Comparison</CardTitle>
+          <CardTitle>{t.reports.monthlyComparison}</CardTitle>
         </div>
         <div className="p-4">
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={monthlyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+              <YAxis tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(v) => `৳${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
               <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ borderRadius: 8, fontSize: 13 }} />
               <Legend />
-              <Bar dataKey="income" name="Income" fill="#22c55e" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expense" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="income" name={t.reports.income} fill="#22c55e" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="expense" name={t.reports.expenses} fill="#ef4444" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -164,16 +175,16 @@ export default function ReportsPage() {
       {/* Profit Line Chart */}
       <Card padding={false}>
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
-          <CardTitle>Profit Trend</CardTitle>
+          <CardTitle>{t.reports.profitTrend}</CardTitle>
         </div>
         <div className="p-4">
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+              <YAxis tick={{ fontSize: 12 }} tickLine={false} tickFormatter={(v) => `৳${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
               <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ borderRadius: 8, fontSize: 13 }} />
-              <Line type="monotone" dataKey="profit" name="Profit" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="profit" name={t.reports.profit} stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -182,22 +193,22 @@ export default function ReportsPage() {
       {/* Category Breakdown */}
       <Card padding={false}>
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
-          <CardTitle>Expense by Category</CardTitle>
+          <CardTitle>{t.reports.expenseByCategory}</CardTitle>
         </div>
-        {categoryData.length === 0 ? (
+        {loading || categoryData.length === 0 ? (
           <div className="flex flex-col items-center py-10 text-gray-400">
             <BarChart3 className="w-8 h-8 mb-2" />
-            <p className="text-sm">No expense data available</p>
+            <p className="text-sm">{t.reports.noExpenseAvailable}</p>
           </div>
         ) : (
           <div className="p-4">
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={categoryData} layout="vertical" margin={{ top: 0, right: 20, left: 60, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `৳${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
                 <YAxis type="category" dataKey="category" tick={{ fontSize: 11 }} width={80} />
                 <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ borderRadius: 8, fontSize: 13 }} />
-                <Bar dataKey="amount" name="Amount" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="amount" name={t.reports.amount} fill="#f59e0b" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

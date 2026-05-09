@@ -8,14 +8,8 @@ import { formatRelativeTime, cn } from '@/lib/utils';
 import { Bell, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useT } from '@/lib/i18n/use-t';
 import toast from 'react-hot-toast';
-
-const typeLabel: Record<string, string> = {
-  system: 'System',
-  financial: 'Financial',
-  activity: 'Activity',
-  reports: 'Reports',
-};
 
 const typeVariant: Record<string, 'purple' | 'success' | 'info' | 'warning'> = {
   system: 'purple',
@@ -28,6 +22,7 @@ export default function NotificationsPage() {
   const { user } = useAuthStore();
   const { notifications } = useNotifications();
   const { markRead, markAllRead } = useNotificationStore();
+  const t = useT();
 
   const handleMarkRead = async (id: string) => {
     markRead(id);
@@ -38,7 +33,7 @@ export default function NotificationsPage() {
     if (!user?.id) return;
     markAllRead();
     await markAllNotificationsRead(user.id);
-    toast.success('All notifications marked as read');
+    toast.success(t.notifications.markAllRead);
   };
 
   const unread = notifications.filter((n) => !n.read).length;
@@ -47,9 +42,9 @@ export default function NotificationsPage() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Notifications</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.notifications.title}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {unread > 0 ? `${unread} unread` : 'All caught up'}
+            {unread > 0 ? `${unread} ${t.notifications.unread}` : t.notifications.allCaughtUp}
           </p>
         </div>
         {unread > 0 && (
@@ -59,7 +54,7 @@ export default function NotificationsPage() {
             onClick={handleMarkAllRead}
             leftIcon={<CheckCheck className="w-4 h-4" />}
           >
-            Mark all read
+            {t.notifications.markAllRead}
           </Button>
         )}
       </div>
@@ -68,8 +63,8 @@ export default function NotificationsPage() {
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-gray-400 dark:text-gray-600">
             <Bell className="w-12 h-12 mb-3" />
-            <p className="font-medium">No notifications yet</p>
-            <p className="text-sm mt-1">You&apos;ll see important updates here</p>
+            <p className="font-medium">{t.notifications.noNotifications}</p>
+            <p className="text-sm mt-1">{t.notifications.noNotificationsDesc}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50 dark:divide-gray-800">
@@ -109,7 +104,7 @@ export default function NotificationsPage() {
                         <span className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" />
                       )}
                       <Badge variant={typeVariant[n.type] || 'default'} className="ml-auto">
-                        {typeLabel[n.type] || n.type}
+                        {t.notifications.typeLabels[n.type as keyof typeof t.notifications.typeLabels] || n.type}
                       </Badge>
                     </div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{n.message}</p>

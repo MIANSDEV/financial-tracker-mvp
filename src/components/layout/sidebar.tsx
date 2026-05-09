@@ -16,80 +16,37 @@ import {
   BarChart3,
   CreditCard,
   UserCircle,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth';
+import { usePermissions } from '@/lib/permissions';
+import { useT } from '@/lib/i18n/use-t';
+import type { RolePermissions } from '@/types';
 
 interface NavItem {
-  label: string;
+  labelKey: 'dashboard' | 'transactions' | 'reports' | 'companies' | 'subscriptions' | 'users' | 'roles' | 'categories' | 'auditLogs' | 'notifications' | 'myProfile' | 'settings';
   href: string;
   icon: React.ElementType;
+  // 'staff' means visible to custom roles (filtered further by permissionKey)
   roles: string[];
+  // if set, custom roles must have this permission true
+  permissionKey?: keyof RolePermissions;
 }
 
 const navItems: NavItem[] = [
-  {
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-    roles: ['super_admin', 'admin', 'staff'],
-  },
-  // Transactions, Reports, Users, Audit Logs are company-scoped.
-  // super_admin has no companyId so these pages are not relevant to them.
-  {
-    label: 'Transactions',
-    href: '/transactions',
-    icon: ArrowUpDown,
-    roles: ['admin', 'staff'],
-  },
-  {
-    label: 'Reports',
-    href: '/reports',
-    icon: BarChart3,
-    roles: ['admin'],
-  },
-  {
-    label: 'Companies',
-    href: '/companies',
-    icon: Building2,
-    roles: ['super_admin'],
-  },
-  {
-    label: 'Subscriptions',
-    href: '/subscriptions',
-    icon: CreditCard,
-    roles: ['super_admin'],
-  },
-  {
-    label: 'Users',
-    href: '/users',
-    icon: Users,
-    roles: ['admin'],
-  },
-  {
-    label: 'Audit Logs',
-    href: '/audit-logs',
-    icon: FileText,
-    roles: ['admin'],
-  },
-  {
-    label: 'Notifications',
-    href: '/notifications',
-    icon: Bell,
-    roles: ['super_admin', 'admin', 'staff'],
-  },
-  {
-    label: 'My Profile',
-    href: '/profile',
-    icon: UserCircle,
-    roles: ['super_admin', 'admin', 'staff'],
-  },
-  {
-    label: 'Settings',
-    href: '/settings',
-    icon: Settings,
-    roles: ['super_admin', 'admin', 'staff'],
-  },
+  { labelKey: 'dashboard',     href: '/dashboard',     icon: LayoutDashboard, roles: ['super_admin', 'admin', 'staff'] },
+  { labelKey: 'transactions',  href: '/transactions',  icon: ArrowUpDown,     roles: ['admin', 'staff'], permissionKey: 'canViewTransactions' },
+  { labelKey: 'reports',       href: '/reports',       icon: BarChart3,       roles: ['admin', 'staff'], permissionKey: 'canViewReports' },
+  { labelKey: 'companies',     href: '/companies',     icon: Building2,       roles: ['super_admin'] },
+  { labelKey: 'subscriptions', href: '/subscriptions', icon: CreditCard,      roles: ['super_admin'] },
+  { labelKey: 'users',         href: '/users',         icon: Users,           roles: ['admin', 'staff'], permissionKey: 'canManageUsers' },
+  { labelKey: 'roles',         href: '/roles',         icon: Shield,          roles: ['admin'] },
+  { labelKey: 'categories',    href: '/categories',    icon: Tag,             roles: ['admin'] },
+  { labelKey: 'auditLogs',     href: '/audit-logs',    icon: FileText,        roles: ['admin', 'staff'], permissionKey: 'canViewAuditLogs' },
+  { labelKey: 'notifications', href: '/notifications', icon: Bell,            roles: ['super_admin', 'admin', 'staff'] },
+  { labelKey: 'myProfile',     href: '/profile',       icon: UserCircle,      roles: ['super_admin', 'admin', 'staff'] },
+  { labelKey: 'settings',      href: '/settings',      icon: Settings,        roles: ['super_admin', 'admin', 'staff'] },
 ];
 
 interface SidebarProps {
@@ -100,10 +57,20 @@ interface SidebarProps {
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, company } = useAuthStore();
+  const perms = usePermissions();
+  const t = useT();
 
-  const filtered = navItems.filter(
-    (item) => user?.role && item.roles.includes(user.role)
-  );
+  const filtered = navItems.filter((item) => {
+    if (!user?.role) return false;
+    // super_admin and admin use exact role matching
+    if (user.role === 'super_admin' || user.role === 'admin') {
+      return item.roles.includes(user.role);
+    }
+    // custom roles: item must include 'staff' + pass permission check
+    if (!item.roles.includes('staff')) return false;
+    if (item.permissionKey) return perms[item.permissionKey];
+    return true;
+  });
 
   return (
     <>
@@ -149,7 +116,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {user?.role === 'super_admin' && (
           <div className="mx-4 mt-3 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg flex items-center gap-2">
             <Shield className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-            <span className="text-xs font-medium text-purple-700 dark:text-purple-300">Super Admin</span>
+            <span className="text-xs font-medium text-purple-700 dark:text-purple-300">{t.common.superAdmin}</span>
           </div>
         )}
 
@@ -170,7 +137,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 )}
               >
                 <item.icon className={cn('w-4.5 h-4.5', isActive ? 'text-brand-600 dark:text-brand-400' : '')} style={{ width: 18, height: 18 }} />
-                {item.label}
+                {t.nav[item.labelKey]}
               </Link>
             );
           })}

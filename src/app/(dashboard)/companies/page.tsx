@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Building2, Trash2, Pencil, Users, Eye, EyeOff } from 'lucide-react';
+import { Plus, Building2, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,13 +18,15 @@ import {
   createUser,
   createSubscriptionPayment,
   createNotification,
+  createCompanyRole,
 } from '@/lib/firebase/firestore';
 import type { Company } from '@/types';
-import { SUBSCRIPTION_PLANS } from '@/types';
+import { SUBSCRIPTION_PLANS, TRANSACTION_CATEGORIES, DEFAULT_ROLE_PERMISSIONS } from '@/types';
 import { formatDate, addDays } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
+import { useT } from '@/lib/i18n/use-t';
 
 const schema = z.object({
   name: z.string().min(2, 'Company name is required'),
@@ -40,6 +42,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function CompaniesPage() {
   const { user } = useAuthStore();
+  const t = useT();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,7 +50,6 @@ export default function CompaniesPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
-  // All hooks must be called before any early return
   const {
     register,
     handleSubmit,
@@ -69,8 +71,8 @@ export default function CompaniesPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-gray-400">
         <Building2 className="w-12 h-12 mb-3" />
-        <p className="text-lg font-medium">Access Denied</p>
-        <p className="text-sm mt-1">Only Super Admins can manage companies.</p>
+        <p className="text-lg font-medium">{t.common.accessDenied}</p>
+        <p className="text-sm mt-1">{t.companies.accessDeniedDesc}</p>
       </div>
     );
   }
@@ -89,6 +91,14 @@ export default function CompaniesPage() {
         subscriptionExpiresAt: expiresAt,
         status: 'active',
         adminId: adminUid,
+        incomeCategories: [...TRANSACTION_CATEGORIES.income],
+        expenseCategories: [...TRANSACTION_CATEGORIES.expense],
+      });
+
+      await createCompanyRole({
+        companyId,
+        name: 'Staff',
+        permissions: DEFAULT_ROLE_PERMISSIONS,
       });
 
       await createUser(adminUid, {
@@ -98,7 +108,6 @@ export default function CompaniesPage() {
         companyId,
       });
 
-      // Auto-create a pending payment record for the first billing cycle
       const plan = SUBSCRIPTION_PLANS[data.subscriptionPlan];
       if (plan.price > 0) {
         const now = new Date();
@@ -115,7 +124,6 @@ export default function CompaniesPage() {
         });
       }
 
-      // Notify super admin
       if (user?.id) {
         await createNotification({
           userId: user.id,
@@ -171,11 +179,13 @@ export default function CompaniesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Companies</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{companies.length} registered tenants</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.companies.title}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            {companies.length} {t.companies.registeredTenants}
+          </p>
         </div>
         <Button onClick={() => setModalOpen(true)} leftIcon={<Plus className="w-4 h-4" />}>
-          New Company
+          {t.companies.newCompany}
         </Button>
       </div>
 
@@ -190,8 +200,8 @@ export default function CompaniesPage() {
         <Card>
           <div className="flex flex-col items-center py-12 text-gray-400 dark:text-gray-600">
             <Building2 className="w-12 h-12 mb-3" />
-            <p className="font-medium">No companies yet</p>
-            <p className="text-sm mt-1">Create your first company to get started</p>
+            <p className="font-medium">{t.companies.noCompanies}</p>
+            <p className="text-sm mt-1">{t.companies.noCompaniesDesc}</p>
           </div>
         </Card>
       ) : (
@@ -221,16 +231,16 @@ export default function CompaniesPage() {
 
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Plan</span>
+                    <span className="text-gray-500 dark:text-gray-400">{t.companies.plan}</span>
                     <Badge variant="purple">{plan.label}</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Price</span>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">${plan.price}/mo</span>
+                    <span className="text-gray-500 dark:text-gray-400">{t.companies.price}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">৳{plan.price}{t.common.perMonth}</span>
                   </div>
                   {company.subscriptionExpiresAt && (
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Expires</span>
+                      <span className="text-gray-500 dark:text-gray-400">{t.companies.expires}</span>
                       <span className={cn('font-medium', isExpiringSoon ? 'text-red-500' : 'text-gray-700 dark:text-gray-300')}>
                         {formatDate(company.subscriptionExpiresAt)}
                         {isExpiringSoon && ' ⚠️'}
@@ -238,7 +248,7 @@ export default function CompaniesPage() {
                     </div>
                   )}
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Created</span>
+                    <span className="text-gray-500 dark:text-gray-400">{t.companies.created}</span>
                     <span className="text-gray-700 dark:text-gray-300">{formatDate(company.createdAt)}</span>
                   </div>
                 </div>
@@ -253,7 +263,7 @@ export default function CompaniesPage() {
                         : 'bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400'
                     )}
                   >
-                    {company.status === 'active' ? 'Deactivate' : 'Activate'}
+                    {company.status === 'active' ? t.companies.deactivate : t.companies.activate}
                   </button>
                   {deleteConfirm === company.id ? (
                     <div className="flex gap-1">
@@ -261,13 +271,13 @@ export default function CompaniesPage() {
                         onClick={() => handleDelete(company.id)}
                         className="px-2 py-1.5 rounded-lg text-xs bg-red-500 text-white hover:bg-red-600"
                       >
-                        Delete
+                        {t.common.delete}
                       </button>
                       <button
                         onClick={() => setDeleteConfirm(null)}
                         className="px-2 py-1.5 rounded-lg text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                       >
-                        Cancel
+                        {t.common.cancel}
                       </button>
                     </div>
                   ) : (
@@ -290,7 +300,7 @@ export default function CompaniesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Create New Company</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t.companies.createNewCompany}</h2>
               <button onClick={() => setModalOpen(false)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
                 <X className="w-5 h-5" />
               </button>
@@ -298,12 +308,12 @@ export default function CompaniesPage() {
 
             <form onSubmit={handleSubmit(handleCreate)} className="p-6 space-y-4">
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Company Details</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{t.companies.companyDetailsSection}</p>
                 <div className="space-y-3">
                   {[
-                    { name: 'name', label: 'Company Name', type: 'text', placeholder: 'Acme Corp' },
-                    { name: 'email', label: 'Company Email', type: 'email', placeholder: 'info@acme.com' },
-                    { name: 'phone', label: 'Phone (optional)', type: 'tel', placeholder: '+1 234 567 8900' },
+                    { name: 'name', label: t.companies.companyName, type: 'text', placeholder: 'Acme Corp' },
+                    { name: 'email', label: t.companies.companyEmail, type: 'email', placeholder: 'info@acme.com' },
+                    { name: 'phone', label: t.companies.phone, type: 'tel', placeholder: '+880 1234 567890' },
                   ].map(({ name, label, type, placeholder }) => (
                     <div key={name}>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
@@ -320,13 +330,13 @@ export default function CompaniesPage() {
                   ))}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subscription Plan</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.companies.subscriptionPlan}</label>
                     <select
                       {...register('subscriptionPlan')}
                       className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                     >
                       {Object.entries(SUBSCRIPTION_PLANS).map(([key, val]) => (
-                        <option key={key} value={key}>{val.label} — ${val.price}/mo</option>
+                        <option key={key} value={key}>{val.label} — ৳{val.price}{t.common.perMonth}</option>
                       ))}
                     </select>
                   </div>
@@ -334,11 +344,11 @@ export default function CompaniesPage() {
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Admin Account</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{t.companies.adminAccountSection}</p>
                 <div className="space-y-3">
                   {[
-                    { name: 'adminName', label: 'Admin Name', type: 'text', placeholder: 'John Doe' },
-                    { name: 'adminEmail', label: 'Admin Email', type: 'email', placeholder: 'admin@acme.com' },
+                    { name: 'adminName', label: t.companies.adminName, type: 'text', placeholder: 'John Doe' },
+                    { name: 'adminEmail', label: t.companies.adminEmail, type: 'email', placeholder: 'admin@acme.com' },
                   ].map(({ name, label, type, placeholder }) => (
                     <div key={name}>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
@@ -354,14 +364,13 @@ export default function CompaniesPage() {
                     </div>
                   ))}
 
-                  {/* Admin Password with eye toggle */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Admin Password</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t.companies.adminPassword}</label>
                     <div className="relative">
                       <input
                         {...register('adminPassword')}
                         type={showAdminPassword ? 'text' : 'password'}
-                        placeholder="Min 8 characters"
+                        placeholder={t.companies.minPassword}
                         className="w-full px-4 py-2.5 pr-10 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                       />
                       <button
@@ -381,10 +390,10 @@ export default function CompaniesPage() {
 
               <div className="flex gap-3 pt-2">
                 <Button type="button" variant="secondary" onClick={() => setModalOpen(false)} className="flex-1">
-                  Cancel
+                  {t.common.cancel}
                 </Button>
                 <Button type="submit" loading={saving} className="flex-1">
-                  Create Company
+                  {t.companies.createCompany}
                 </Button>
               </div>
             </form>

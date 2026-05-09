@@ -28,6 +28,8 @@ import type {
   NotificationSettings,
   AuditLog,
   SubscriptionPayment,
+  CompanyRole,
+  RolePermissions,
 } from '@/types';
 
 // ── Converters ──────────────────────────────────────────────────────────────
@@ -278,6 +280,48 @@ export async function upsertNotificationSettings(
 }
 
 // ── Audit Logs ────────────────────────────────────────────────────────────────
+
+// ── Company Roles ─────────────────────────────────────────────────────────────
+
+export async function getCompanyRoles(companyId: string): Promise<CompanyRole[]> {
+  const q = query(
+    collection(db, 'company_roles'),
+    where('companyId', '==', companyId),
+    orderBy('createdAt', 'asc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      ...data,
+      id: d.id,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+    };
+  }) as CompanyRole[];
+}
+
+export async function createCompanyRole(
+  data: Omit<CompanyRole, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<string> {
+  const ref = await addDoc(collection(db, 'company_roles'), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateCompanyRole(roleId: string, data: Partial<Pick<CompanyRole, 'name' | 'permissions'>>) {
+  await updateDoc(doc(db, 'company_roles', roleId), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteCompanyRole(roleId: string) {
+  await deleteDoc(doc(db, 'company_roles', roleId));
+}
 
 // ── Subscription Payments ─────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, Moon, Sun, Shield, Save, Smartphone, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Bell, Moon, Sun, Shield, Save, Smartphone, KeyRound, Eye, EyeOff, Languages } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
   EmailAuthProvider,
@@ -20,6 +20,8 @@ import { requestNotificationPermission } from '@/lib/firebase/messaging';
 import type { NotificationSettings } from '@/types';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/use-t';
+import { useLanguageStore } from '@/store/language';
 
 function Toggle({
   checked,
@@ -73,12 +75,13 @@ const defaultSettings: NotificationSettings = {
 export default function SettingsPage() {
   const { user } = useAuthStore();
   const { theme, setTheme } = useTheme();
+  const t = useT();
+  const { language, setLanguage } = useLanguageStore();
   const [settings, setSettings] = useState<NotificationSettings>(defaultSettings);
   const [saving, setSaving] = useState(false);
   const [fcmLoading, setFcmLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Password change state
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [pwSaving, setPwSaving] = useState(false);
   const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
@@ -166,14 +169,14 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage your account and notification preferences</p>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.settings.title}</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{t.settings.subtitle}</p>
       </div>
 
       {/* Profile */}
       <Card>
         <CardHeader>
-          <CardTitle>Profile</CardTitle>
+          <CardTitle>{t.settings.profile}</CardTitle>
         </CardHeader>
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-full bg-brand-600 flex items-center justify-center text-white text-xl font-bold">
@@ -197,14 +200,14 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <KeyRound className="w-4 h-4 text-brand-600" />
-            Change Password
+            {t.settings.changePassword}
           </CardTitle>
         </CardHeader>
         <div className="space-y-3">
           {([
-            { key: 'current', label: 'Current Password' },
-            { key: 'next',    label: 'New Password' },
-            { key: 'confirm', label: 'Confirm New Password' },
+            { key: 'current', label: t.settings.currentPassword },
+            { key: 'next',    label: t.settings.newPassword },
+            { key: 'confirm', label: t.settings.confirmPassword },
           ] as { key: keyof typeof pwForm; label: string }[]).map(({ key, label }) => (
             <div key={key}>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
@@ -232,7 +235,7 @@ export default function SettingsPage() {
               loading={pwSaving}
               leftIcon={<KeyRound className="w-4 h-4" />}
             >
-              Update Password
+              {t.settings.updatePassword}
             </Button>
           </div>
         </div>
@@ -242,15 +245,15 @@ export default function SettingsPage() {
       {mounted && (
         <Card>
           <CardHeader>
-            <CardTitle>Appearance</CardTitle>
+            <CardTitle>{t.settings.appearance}</CardTitle>
           </CardHeader>
           <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Theme</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t.settings.theme}</p>
             <div className="grid grid-cols-3 gap-3">
               {[
-                { value: 'light', label: 'Light', icon: <Sun className="w-4 h-4" /> },
-                { value: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" /> },
-                { value: 'system', label: 'System', icon: <Smartphone className="w-4 h-4" /> },
+                { value: 'light', label: t.settings.lightMode, icon: <Sun className="w-4 h-4" /> },
+                { value: 'dark', label: t.settings.darkMode, icon: <Moon className="w-4 h-4" /> },
+                { value: 'system', label: t.settings.systemMode, icon: <Smartphone className="w-4 h-4" /> },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -271,12 +274,42 @@ export default function SettingsPage() {
         </Card>
       )}
 
+      {/* Language */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Languages className="w-4 h-4 text-brand-600" />
+            {t.settings.language}
+          </CardTitle>
+        </CardHeader>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{t.settings.languageDesc}</p>
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            { value: 'en', label: t.settings.english },
+            { value: 'bn', label: t.settings.bangla },
+          ] as const).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setLanguage(opt.value)}
+              className={cn(
+                'py-3 rounded-xl border-2 text-sm font-medium transition-all',
+                language === opt.value
+                  ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
       {/* Push Notifications */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="w-4.5 h-4.5 text-brand-600" style={{ width: 18, height: 18 }} />
-            Push Notifications
+            {t.settings.pushNotifications}
           </CardTitle>
         </CardHeader>
 
@@ -285,8 +318,8 @@ export default function SettingsPage() {
             <Toggle
               checked={settings.pushEnabled}
               onChange={(v) => setSettings((s) => ({ ...s, pushEnabled: v }))}
-              label="Enable Push Notifications"
-              description="Receive browser push notifications"
+              label={t.settings.enablePush}
+              description={t.settings.pushDesc}
             />
             {!settings.fcmToken && (
               <Button
@@ -296,7 +329,7 @@ export default function SettingsPage() {
                 loading={fcmLoading}
                 className="mt-2"
               >
-                Request Permission
+                {t.settings.requestPermission}
               </Button>
             )}
           </div>
@@ -304,31 +337,31 @@ export default function SettingsPage() {
           {settings.pushEnabled && (
             <div className="pt-2 space-y-1">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider py-2">
-                Notification Types
+                {t.settings.notificationTypes}
               </p>
               <Toggle
                 checked={settings.types.system}
                 onChange={(v) => updateType('system', v)}
-                label="System Notifications"
-                description="Subscription expiry, payment due (critical)"
+                label={t.settings.systemNotif}
+                description={t.settings.systemNotifDesc}
               />
               <Toggle
                 checked={settings.types.financial}
                 onChange={(v) => updateType('financial', v)}
-                label="Financial Alerts"
-                description="High expense alerts, daily summaries"
+                label={t.settings.financialAlerts}
+                description={t.settings.financialAlertsDesc}
               />
               <Toggle
                 checked={settings.types.activity}
                 onChange={(v) => updateType('activity', v)}
-                label="Activity Notifications"
-                description="Transaction added, edited by team members"
+                label={t.settings.activityNotif}
+                description={t.settings.activityNotifDesc}
               />
               <Toggle
                 checked={settings.types.reports}
                 onChange={(v) => updateType('reports', v)}
-                label="Report Notifications"
-                description="Weekly and monthly report summaries"
+                label={t.settings.reportNotif}
+                description={t.settings.reportNotifDesc}
               />
             </div>
           )}
@@ -336,7 +369,7 @@ export default function SettingsPage() {
 
         <div className="mt-6">
           <Button onClick={handleSave} loading={saving} leftIcon={<Save className="w-4 h-4" />}>
-            Save Preferences
+            {t.settings.savePreferences}
           </Button>
         </div>
       </Card>

@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { getUser, getCompany } from '@/lib/firebase/firestore';
+import { getUser, getCompany, getCompanyRoles } from '@/lib/firebase/firestore';
 import { useAuthStore } from '@/store/auth';
 import { setupForegroundMessaging } from '@/lib/firebase/messaging';
 import toast from 'react-hot-toast';
@@ -21,7 +21,7 @@ function buildFallbackUser(firebaseUser: { uid: string; displayName?: string | n
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setCompany, setLoading, reset } = useAuthStore();
+  const { setUser, setCompany, setCompanyRoles, setLoading, reset } = useAuthStore();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -47,12 +47,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData);
 
         if (userData.companyId) {
-          try {
-            const companyData = await getCompany(userData.companyId);
-            setCompany(companyData);
-          } catch {
-            // Company fetch failed — continue without it
-          }
+          const [companyResult, rolesResult] = await Promise.allSettled([
+            getCompany(userData.companyId),
+            getCompanyRoles(userData.companyId),
+          ]);
+          if (companyResult.status === 'fulfilled') setCompany(companyResult.value);
+          if (rolesResult.status === 'fulfilled') setCompanyRoles(rolesResult.value);
         }
       } catch (error: unknown) {
         const msg = (error as Error)?.message ?? '';

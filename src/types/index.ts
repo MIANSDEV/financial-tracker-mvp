@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'admin' | 'staff';
+export type UserRole = 'super_admin' | 'admin' | string;
 
 export type SubscriptionPlan = 'free' | 'basic' | 'professional' | 'enterprise';
 
@@ -7,6 +7,35 @@ export type CompanyStatus = 'active' | 'inactive' | 'suspended';
 export type TransactionType = 'income' | 'expense';
 
 export type NotificationType = 'system' | 'financial' | 'activity' | 'reports';
+
+export interface RolePermissions {
+  canViewTransactions: boolean;
+  canCreateTransactions: boolean;
+  canEditTransactions: boolean;
+  canDeleteTransactions: boolean;
+  canViewReports: boolean;
+  canViewAuditLogs: boolean;
+  canManageUsers: boolean;
+}
+
+export interface CompanyRole {
+  id: string;
+  companyId: string;
+  name: string;
+  permissions: RolePermissions;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
+  canViewTransactions: true,
+  canCreateTransactions: true,
+  canEditTransactions: true,
+  canDeleteTransactions: false,
+  canViewReports: false,
+  canViewAuditLogs: false,
+  canManageUsers: false,
+};
 
 export type PaymentStatus = 'paid' | 'pending' | 'overdue';
 
@@ -46,6 +75,8 @@ export interface Company {
   subscriptionExpiresAt: Date | null;
   status: CompanyStatus;
   adminId: string;
+  incomeCategories?: string[];
+  expenseCategories?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

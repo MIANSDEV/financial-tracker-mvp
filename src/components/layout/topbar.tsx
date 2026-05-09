@@ -10,6 +10,8 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/firebase/firestore';
 import { useNotificationStore } from '@/store/notifications';
 import { useAuthStore } from '@/store/auth';
+import { useLanguageStore } from '@/store/language';
+import { useT } from '@/lib/i18n/use-t';
 import { formatRelativeTime, cn } from '@/lib/utils';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -22,6 +24,8 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { user } = useAuthStore();
+  const { language, setLanguage } = useLanguageStore();
+  const t = useT();
   const { notifications, unreadCount } = useNotifications();
   const { markRead, markAllRead } = useNotificationStore();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -67,6 +71,32 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       <div className="flex-1 lg:flex-none" />
 
       <div className="flex items-center gap-2">
+        {/* Language toggle */}
+        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+          <button
+            onClick={() => setLanguage('en')}
+            className={cn(
+              'px-2.5 py-1 rounded-md text-xs font-semibold transition-colors',
+              language === 'en'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            )}
+          >
+            EN
+          </button>
+          <button
+            onClick={() => setLanguage('bn')}
+            className={cn(
+              'px-2.5 py-1 rounded-md text-xs font-semibold transition-colors',
+              language === 'bn'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            )}
+          >
+            বাং
+          </button>
+        </div>
+
         {/* Dark mode toggle */}
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -94,7 +124,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
                 <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
-                  Notifications {unreadCount > 0 && <span className="text-brand-600">({unreadCount})</span>}
+                  {t.topbar.notifications} {unreadCount > 0 && <span className="text-brand-600">({unreadCount})</span>}
                 </h3>
                 <div className="flex items-center gap-2">
                   {unreadCount > 0 && (
@@ -103,7 +133,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                       className="text-xs text-brand-600 hover:underline flex items-center gap-1"
                     >
                       <CheckCheck className="w-3.5 h-3.5" />
-                      Mark all read
+                      {t.topbar.markAllRead}
                     </button>
                   )}
                   <Link
@@ -111,7 +141,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                     onClick={() => setNotifOpen(false)}
                     className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                   >
-                    View all
+                    {t.topbar.viewAll}
                   </Link>
                 </div>
               </div>
@@ -120,7 +150,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 {notifications.length === 0 ? (
                   <div className="px-4 py-8 text-center">
                     <Bell className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500 dark:text-gray-400">No notifications</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t.topbar.noNotifications}</p>
                   </div>
                 ) : (
                   notifications.slice(0, 10).map((n) => (
@@ -191,7 +221,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                   className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
                 >
                   <UserCircle className="w-4 h-4" />
-                  My Profile
+                  {t.topbar.myProfile}
                 </Link>
                 <Link
                   href="/settings"
@@ -199,14 +229,14 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                   className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
                 >
                   <Settings className="w-4 h-4" />
-                  Settings
+                  {t.topbar.settings}
                 </Link>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                 >
                   <LogOut className="w-4 h-4" />
-                  Sign out
+                  {t.topbar.signOut}
                 </button>
               </div>
             </div>

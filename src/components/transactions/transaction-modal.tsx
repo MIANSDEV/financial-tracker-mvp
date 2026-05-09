@@ -7,8 +7,10 @@ import { z } from 'zod';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/use-t';
 import { TRANSACTION_CATEGORIES } from '@/types';
 import type { Transaction } from '@/types';
+
 import { format } from 'date-fns';
 
 const schema = z.object({
@@ -27,6 +29,8 @@ interface TransactionModalProps {
   onSave: (data: FormValues) => Promise<void>;
   transaction?: Transaction | null;
   loading?: boolean;
+  incomeCategories?: string[];
+  expenseCategories?: string[];
 }
 
 export function TransactionModal({
@@ -35,6 +39,8 @@ export function TransactionModal({
   onSave,
   transaction,
   loading = false,
+  incomeCategories,
+  expenseCategories,
 }: TransactionModalProps) {
   const {
     register,
@@ -47,7 +53,13 @@ export function TransactionModal({
     defaultValues: { type: 'income', date: format(new Date(), 'yyyy-MM-dd') },
   });
 
+  const t = useT();
   const selectedType = watch('type');
+
+  const categories =
+    selectedType === 'income'
+      ? (incomeCategories?.length ? incomeCategories : TRANSACTION_CATEGORIES.income)
+      : (expenseCategories?.length ? expenseCategories : TRANSACTION_CATEGORIES.expense);
 
   useEffect(() => {
     if (transaction) {
@@ -70,7 +82,7 @@ export function TransactionModal({
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {transaction ? 'Edit Transaction' : 'Add Transaction'}
+            {transaction ? t.transactions.editTransaction : t.transactions.addTransaction}
           </h2>
           <button
             onClick={onClose}
@@ -84,7 +96,7 @@ export function TransactionModal({
           {/* Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Type
+              {t.transactions.type}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {(['income', 'expense'] as const).map((type) => (
@@ -100,7 +112,7 @@ export function TransactionModal({
                   )}
                 >
                   <input {...register('type')} type="radio" value={type} className="sr-only" />
-                  {type === 'income' ? '↑' : '↓'} {type}
+                  {type === 'income' ? '↑' : '↓'} {type === 'income' ? t.transactions.income : t.transactions.expense}
                 </label>
               ))}
             </div>
@@ -109,7 +121,7 @@ export function TransactionModal({
           {/* Amount */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Amount ($)
+              {t.transactions.amount}
             </label>
             <input
               {...register('amount')}
@@ -129,7 +141,7 @@ export function TransactionModal({
           {/* Category */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Category
+              {t.transactions.category}
             </label>
             <select
               {...register('category')}
@@ -139,8 +151,8 @@ export function TransactionModal({
                 errors.category ? 'border-red-400' : 'border-gray-300 dark:border-gray-600'
               )}
             >
-              <option value="">Select category</option>
-              {TRANSACTION_CATEGORIES[selectedType].map((cat) => (
+              <option value="">{t.transactions.selectCategory}</option>
+              {categories.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
                 </option>
@@ -152,12 +164,12 @@ export function TransactionModal({
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Description
+              {t.transactions.description}
             </label>
             <input
               {...register('description')}
               type="text"
-              placeholder="Enter description..."
+              placeholder={t.transactions.descPlaceholder}
               className={cn(
                 'w-full px-4 py-2.5 rounded-lg border text-sm bg-white dark:bg-gray-800 dark:text-white',
                 'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent',
@@ -170,7 +182,7 @@ export function TransactionModal({
           {/* Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Date
+              {t.transactions.date}
             </label>
             <input
               {...register('date')}
@@ -186,10 +198,10 @@ export function TransactionModal({
 
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button type="submit" loading={loading} className="flex-1">
-              {transaction ? 'Update' : 'Add Transaction'}
+              {transaction ? t.common.update : t.transactions.addTransaction}
             </Button>
           </div>
         </form>
