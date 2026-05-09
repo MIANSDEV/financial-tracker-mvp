@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'Financial Tracker',
   },
   formatDetection: { telephone: false },
@@ -22,13 +22,21 @@ export const metadata: Metadata = {
     shortcut: '/favicon.ico',
     apple: '/icons/apple-touch-icon.png',
   },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0ea5e9',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#0ea5e9' },
+    { media: '(prefers-color-scheme: dark)', color: '#0284c7' },
+  ],
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

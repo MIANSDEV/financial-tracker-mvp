@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -17,6 +18,7 @@ import {
   CreditCard,
   UserCircle,
   Tag,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth';
@@ -59,6 +61,27 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { user, company } = useAuthStore();
   const perms = usePermissions();
   const t = useT();
+
+  const [canInstall, setCanInstall] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches) return;
+    if (window.__pwaPrompt) { setCanInstall(true); return; }
+    const handler = () => setCanInstall(true);
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    const prompt = window.__pwaPrompt;
+    if (!prompt) return;
+    await prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === 'accepted') {
+      window.__pwaPrompt = null;
+      setCanInstall(false);
+    }
+  };
 
   const filtered = navItems.filter((item) => {
     if (!user?.role) return false;
@@ -142,6 +165,19 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             );
           })}
         </nav>
+
+        {/* Install App */}
+        {canInstall && (
+          <div className="px-3 pb-2">
+            <button
+              onClick={handleInstall}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/20 border border-brand-200 dark:border-brand-800 transition-colors"
+            >
+              <Download className="w-4 h-4 shrink-0" />
+              Install App
+            </button>
+          </div>
+        )}
 
         {/* User */}
         <div className="border-t border-gray-200 dark:border-gray-800 px-4 py-4">

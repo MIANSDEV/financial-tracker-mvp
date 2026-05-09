@@ -48,9 +48,43 @@
 @layer base {
   * {
     @apply border-gray-200 dark:border-gray-700;
+    /* Remove blue tap flash on every tappable element (Android) */
+    -webkit-tap-highlight-color: transparent;
   }
+
+  html {
+    /* Prevent rubber-band overscroll / pull-to-refresh (makes it feel native) */
+    overscroll-behavior: none;
+    height: 100%;
+  }
+
   body {
     @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+    overscroll-behavior: none;
+    /* Use dvh so address bar doesn't resize the viewport in Chrome */
+    min-height: 100dvh;
+  }
+
+  /* Faster touch response — removes the 300 ms click delay */
+  a, button, [role="button"], input, select, textarea, label {
+    touch-action: manipulation;
+  }
+
+  /* Prevent long-press text selection on UI chrome (buttons, nav items, etc.) */
+  button, [role="button"], nav a {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+/* When running as installed PWA (standalone mode) */
+@media (display-mode: standalone) {
+  body {
+    /* Fill the whole screen including safe-area (notch / home indicator) */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 
