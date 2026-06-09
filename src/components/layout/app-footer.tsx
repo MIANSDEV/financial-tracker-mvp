@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Download, Smartphone, X, Wifi, Zap, Shield } from 'lucide-react';
 
-const DISMISSED_KEY = 'app-footer-dismissed';
-
 function detectAndroid() {
   if (typeof navigator === 'undefined') return false;
   return /Android/i.test(navigator.userAgent);
@@ -116,7 +114,7 @@ function AndroidInstallModal({ onClose }: { onClose: () => void }) {
 }
 
 export function AppFooter() {
-  const [visible, setVisible] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(true);
   const [canInstallNative, setCanInstallNative] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [showAndroidModal, setShowAndroidModal] = useState(false);
@@ -125,28 +123,16 @@ export function AppFooter() {
     const standalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as { standalone?: boolean }).standalone === true;
-    if (standalone) return;
-
-    // Don't show if user dismissed previously
-    if (localStorage.getItem(DISMISSED_KEY) === '1') return;
-
+    setIsInstalled(standalone);
     setIsAndroid(detectAndroid());
 
     if (window.__pwaPrompt) setCanInstallNative(true);
     const handler = () => setCanInstallNative(true);
     window.addEventListener('beforeinstallprompt', handler);
-
-    setVisible(true);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  const dismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, '1');
-    setVisible(false);
-  };
-
-  if (!visible) return null;
-  if (!isAndroid && !canInstallNative) return null;
+  if (isInstalled) return null;
 
   const handleInstallApp = () => {
     const prompt = window.__pwaPrompt;
@@ -189,15 +175,6 @@ export function AppFooter() {
             </button>
           )}
         </div>
-
-        {/* Dismiss */}
-        <button
-          onClick={dismiss}
-          className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
-          title="Dismiss"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
       </footer>
     </>
   );
