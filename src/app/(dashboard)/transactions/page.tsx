@@ -58,6 +58,9 @@ export default function TransactionsPage() {
   const [quickPartnerIds, setQuickPartnerIds] = useState<string[]>([]);
   const [mirrorExpense, setMirrorExpense] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState('');
+  const [mirrorAmountMode, setMirrorAmountMode] = useState<'full' | 'custom'>('full');
+  const [mirrorCustomAmount, setMirrorCustomAmount] = useState('');
+  const [mirrorDate, setMirrorDate] = useState('');
 
   const fetchTransactions = async () => {
     if (!company?.id) { setLoading(false); return; }
@@ -112,7 +115,9 @@ export default function TransactionsPage() {
       ];
       if (mirrorExpense) {
         const mirrorType = quick.type === 'income' ? 'expense' : 'income';
-        saves.push(createTransaction({ ...base, type: mirrorType, category: expenseCategory }));
+        const mirrorAmount = mirrorAmountMode === 'custom' && mirrorCustomAmount ? parseFloat(mirrorCustomAmount) : amount;
+        const mirrorDateVal = mirrorDate ? new Date(mirrorDate) : new Date(quick.date);
+        saves.push(createTransaction({ ...base, type: mirrorType, category: expenseCategory, amount: mirrorAmount, date: mirrorDateVal }));
       }
 
       const ids = await Promise.all(saves);
@@ -138,6 +143,9 @@ export default function TransactionsPage() {
       setQuick((prev) => ({ ...emptyQuick(), type: prev.type, date: prev.date }));
       setQuickPartnerIds([]);
       setExpenseCategory('');
+      setMirrorAmountMode('full');
+      setMirrorCustomAmount('');
+      setMirrorDate('');
       setTimeout(() => descRef.current?.focus(), 0);
       fetchTransactions();
       toast.success(mirrorExpense ? '2 transactions added' : 'Transaction added');
@@ -155,41 +163,39 @@ export default function TransactionsPage() {
     description: string;
     date: string;
     partnerIds: string[];
+    alsoAdd?: { type: 'income' | 'expense'; category: string; amount: number; date: string };
   }) => {
     if (!user || !company || !editTarget) return;
     setSaving(true);
     const selectedPartners = partners.filter((p) => data.partnerIds.includes(p.id));
+    const partnerPayload = selectedPartners.length > 0
+      ? { partnerIds: selectedPartners.map((p) => p.id), partnerNames: selectedPartners.map((p) => p.name) }
+      : {};
     try {
-      await updateTransaction(editTarget.id, {
-        ...data,
-        date: new Date(data.date),
-        partnerIds: selectedPartners.map((p) => p.id),
-        partnerNames: selectedPartners.map((p) => p.name),
-      });
-      await Promise.all([
-        createAuditLog({
-          companyId: company.id,
-          userId: user.id,
-          userName: user.name,
-          action: 'UPDATE',
-          resource: 'transaction',
-          resourceId: editTarget.id,
-          details: data,
-        }),
-        notify({
-          userId: user.id,
-          companyId: company.id,
-          title: 'Transaction updated',
-          message: `${data.description} — ${formatCurrency(data.amount)}`,
-          type: 'activity',
-        }),
-      ]);
-      toast.success('Transaction updated');
+      const { alsoAdd: _alsoAdd, partnerIds: _partnerIds, ...txFields } = data;
+      await updateTransaction(editTarget.id, { ...txFields, date: new Date(data.date), ...partnerPayload });
+
+      const jobs: Promise<unknown>[] = [
+        createAuditLog({ companyId: company.id, userId: user.id, userName: user.name, action: 'UPDATE', resource: 'transaction', resourceId: editTarget.id, details: txFields }),
+        notify({ userId: user.id, companyId: company.id, title: data.alsoAdd ? 'Transaction updated (+mirror)' : 'Transaction updated', message: `${data.description} — ${formatCurrency(data.amount)}`, type: 'activity' }),
+      ];
+
+      if (data.alsoAdd) {
+        const mirrorId = await createTransaction({
+          companyId: company.id, type: data.alsoAdd.type, amount: data.alsoAdd.amount,
+          category: data.alsoAdd.category, description: data.description,
+          date: new Date(data.alsoAdd.date), createdBy: user.id, createdByName: user.name, ...partnerPayload,
+        });
+        jobs.push(createAuditLog({ companyId: company.id, userId: user.id, userName: user.name, action: 'CREATE', resource: 'transaction', resourceId: mirrorId, details: { ...data, type: data.alsoAdd.type, category: data.alsoAdd.category } }));
+      }
+
+      await Promise.all(jobs);
+      toast.success(data.alsoAdd ? '2 transactions saved' : 'Transaction updated');
       setModalOpen(false);
       setEditTarget(null);
       fetchTransactions();
     } catch {
-      toast.error('Failed to update transaction');
+      toast.error('Failed to save transaction');
     } finally {
       setSaving(false);
     }
@@ -216,17 +222,16 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = (type: 'income' | 'expense') => {
     exportToCSV(
-      filtered.map((tx) => ({
+      filtered.filter((tx) => tx.type === type).map((tx) => ({
         Date: formatDate(tx.date),
-        Type: tx.type,
         Category: tx.category,
         Description: tx.description,
         Amount: tx.amount,
         'Added By': tx.createdByName,
       })),
-      'transactions'
+      `transactions-${type}`
     );
   };
 
@@ -268,9 +273,14 @@ export default function TransactionsPage() {
             {filtered.length} transaction{filtered.length !== 1 ? 's' : ''} · Income: {formatCurrency(totalIncome)} · Expense: {formatCurrency(totalExpense)}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport} leftIcon={<Download className="w-4 h-4" />}>
-          {t.transactions.export}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleExport('income')} leftIcon={<Download className="w-4 h-4" />}>
+            Income
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleExport('expense')} leftIcon={<Download className="w-4 h-4" />}>
+            Expense
+          </Button>
+        </div>
       </div>
 
       {/* Quick-add form */}
@@ -285,7 +295,7 @@ export default function TransactionsPage() {
             {(['income', 'expense'] as const).map((type) => (
               <button
                 key={type}
-                onClick={() => setQuick((p) => ({ ...p, type, category: '' }))}
+                onClick={() => { setQuick((p) => ({ ...p, type, category: '' })); setMirrorExpense(false); setExpenseCategory(''); setMirrorAmountMode('full'); setMirrorCustomAmount(''); setMirrorDate(''); }}
                 className={cn(
                   'flex-1 py-2 rounded-lg text-sm font-medium capitalize transition-all border-2',
                   quick.type === type
@@ -364,23 +374,80 @@ export default function TransactionsPage() {
             </span>
           </div>
 
-          {/* Mirror category picker */}
+          {/* Mirror detail panel */}
           {mirrorExpense && (
-            <div className="mb-3">
-              <select
-                value={expenseCategory}
-                onChange={(e) => setExpenseCategory(e.target.value)}
-                className="w-full sm:w-64 px-3 py-2 rounded-lg border border-brand-300 dark:border-brand-700 text-sm bg-brand-50 dark:bg-brand-900/20 text-brand-800 dark:text-brand-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              >
-                <option value="">
-                  Select {quick.type === 'income' ? 'expense' : 'income'} category…
-                </option>
-                {categories
-                  .filter((c) => c.type !== quick.type)
-                  .map((c) => (
+            <div className="mb-3 rounded-xl border border-brand-200 dark:border-brand-800/60 bg-brand-50/50 dark:bg-brand-900/10 p-3 space-y-3">
+              {/* Mirror category */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  {quick.type === 'income' ? 'Expense' : 'Income'} category
+                </label>
+                <select
+                  value={expenseCategory}
+                  onChange={(e) => setExpenseCategory(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="">Select {quick.type === 'income' ? 'expense' : 'income'} category…</option>
+                  {categories.filter((c) => c.type !== quick.type).map((c) => (
                     <option key={c.id} value={c.name}>{c.name}</option>
                   ))}
-              </select>
+                </select>
+              </div>
+
+              {/* Mirror amount */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Amount</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setMirrorAmountMode('full'); setMirrorCustomAmount(''); }}
+                    className={cn(
+                      'flex-1 py-2 rounded-lg border text-sm font-medium transition-all',
+                      mirrorAmountMode === 'full'
+                        ? 'border-brand-500 bg-brand-600 text-white'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                    )}
+                  >
+                    Full ({quick.amount || 0})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMirrorAmountMode('custom')}
+                    className={cn(
+                      'flex-1 py-2 rounded-lg border text-sm font-medium transition-all',
+                      mirrorAmountMode === 'custom'
+                        ? 'border-brand-500 bg-brand-600 text-white'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                    )}
+                  >
+                    Custom
+                  </button>
+                </div>
+                {mirrorAmountMode === 'custom' && (
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={mirrorCustomAmount}
+                    onChange={(e) => setMirrorCustomAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    className="mt-2 w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                )}
+              </div>
+
+              {/* Mirror date */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  Date <span className="font-normal text-gray-400">(leave blank to use same date)</span>
+                </label>
+                <input
+                  type="date"
+                  value={mirrorDate}
+                  onChange={(e) => setMirrorDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
             </div>
           )}
 
@@ -624,8 +691,9 @@ export default function TransactionsPage() {
         )}
       </Card>
 
-      {/* Edit modal */}
+      {/* Edit modal — key forces remount when editTarget changes so useForm re-initializes with correct defaultValues */}
       <TransactionModal
+        key={editTarget?.id ?? 'new'}
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditTarget(null); }}
         onSave={handleEditSave}

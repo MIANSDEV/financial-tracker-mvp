@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n/use-t';
 import { useLanguageStore } from '@/store/language';
+import { AppDownloadPrompt } from '@/components/app-download-prompt';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -192,6 +193,8 @@ export default function LoginPage() {
           © {new Date().getFullYear()} Mians IT Farm. {t.login.footer}
         </p>
       </div>
+
+      <AppDownloadPrompt />
     </div>
   );
 }

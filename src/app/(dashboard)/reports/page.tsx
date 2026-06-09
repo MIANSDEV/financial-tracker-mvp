@@ -79,16 +79,15 @@ export default function ReportsPage() {
     12: t.reports.months12,
   };
 
-  const handleExport = () => {
+  const handleExport = (type: 'income' | 'expense') => {
     exportToCSV(
-      transactions.map((tx) => ({
+      transactions.filter((tx) => tx.type === type).map((tx) => ({
         Date: formatDate(tx.date),
-        Type: tx.type,
         Category: tx.category,
         Description: tx.description,
         Amount: tx.amount,
       })),
-      `financial-report-${format(now, 'yyyy-MM-dd')}`
+      `${type}-report-${format(now, 'yyyy-MM-dd')}`
     );
   };
 
@@ -130,8 +129,11 @@ export default function ReportsPage() {
               </button>
             ))}
           </div>
-          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={handleExport}>
-            {t.reports.export}
+          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={() => handleExport('income')}>
+            Income
+          </Button>
+          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={() => handleExport('expense')}>
+            Expense
           </Button>
         </div>
       </div>

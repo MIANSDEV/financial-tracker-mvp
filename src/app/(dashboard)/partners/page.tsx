@@ -4,16 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, Handshake, Pencil, Check, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useAuthStore } from '@/store/auth';
-import { getCompanyPartners, createPartner, updatePartner, deletePartner } from '@/lib/firebase/firestore';
-import type { Partner } from '@/types';
+import { getCompanyPartners, createPartner, updatePartner, deletePartner, getTransactions } from '@/lib/firebase/firestore';
+import type { Partner, Transaction } from '@/types';
 import toast from 'react-hot-toast';
 import { useT } from '@/lib/i18n/use-t';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 
 export default function PartnersPage() {
   const { user, company } = useAuthStore();
   const t = useT();
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
   const [addSaving, setAddSaving] = useState(false);
@@ -25,9 +26,13 @@ export default function PartnersPage() {
 
   useEffect(() => {
     if (!company?.id) return;
-    getCompanyPartners(company.id)
-      .then(setPartners)
-      .finally(() => setLoading(false));
+    Promise.allSettled([
+      getCompanyPartners(company.id),
+      getTransactions(company.id),
+    ]).then(([partnersResult, txResult]) => {
+      if (partnersResult.status === 'fulfilled') setPartners(partnersResult.value);
+      if (txResult.status === 'fulfilled') setTransactions(txResult.value);
+    }).finally(() => setLoading(false));
   }, [company?.id]);
 
   if (user?.role !== 'admin') {
@@ -97,6 +102,17 @@ export default function PartnersPage() {
     setTimeout(() => editRef.current?.focus(), 0);
   };
 
+  const getPartnerInvestment = (partnerId: string) => {
+    let total = 0;
+    for (const tx of transactions) {
+      if (tx.type !== 'income') continue;
+      if (tx.category.toLowerCase() !== 'investment') continue;
+      if (!tx.partnerIds?.includes(partnerId)) continue;
+      total += tx.amount / tx.partnerIds.length;
+    }
+    return total;
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
@@ -105,6 +121,37 @@ export default function PartnersPage() {
           {t.partners.subtitle} {company?.name}
         </p>
       </div>
+
+      {/* Investment overview */}
+      {!loading && partners.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {partners.map((p) => {
+            const investment = getPartnerInvestment(p.id);
+            if (investment === 0) return null;
+            return (
+              <div
+                key={p.id}
+                className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center shrink-0">
+                    <span className="text-base font-bold text-brand-700 dark:text-brand-300">
+                      {p.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{p.name}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Total Investment</p>
+                  </div>
+                  <p className="ml-auto text-lg font-bold text-brand-600 dark:text-brand-400 shrink-0">
+                    {formatCurrency(investment)}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Add partner */}
       <Card>
