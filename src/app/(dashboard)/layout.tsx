@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { AppFooter } from '@/components/layout/app-footer';
+import { PWAInstallPrompt } from '@/components/pwa-install-prompt';
 import { useAuthStore } from '@/store/auth';
 import { TrendingUp } from 'lucide-react';
 
@@ -51,6 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
         <AppFooter />
+        <PWAInstallPrompt />
       </div>
 
     </div>
