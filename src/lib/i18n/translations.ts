@@ -381,6 +381,7 @@ export const translations = {
       users: 'ব্যবহারকারী',
       roles: 'ভূমিকা',
       categories: 'বিভাগসমূহ',
+      partners: 'অংশীদার',
       auditLogs: 'অডিট লগ',
       notifications: 'বিজ্ঞপ্তি',
       myProfile: 'আমার প্রোফাইল',
@@ -451,6 +452,8 @@ export const translations = {
       noCompany: 'কোনো কোম্পানি নির্বাচিত নেই',
       noCompanyDesc: 'সুপার অ্যাডমিন প্ল্যাটফর্ম পরিচালনা করেন। লেনদেন আলাদা কোম্পানির।',
       export: 'রপ্তানি',
+      partner: 'অংশীদার',
+      selectPartner: 'অংশীদার (ঐচ্ছিক)',
     },
     reports: {
       title: 'প্রতিবেদন',
@@ -553,6 +556,16 @@ export const translations = {
         canViewAuditLogs: 'কার্যকলাপ অডিট লগ দেখুন',
         canManageUsers: 'কোম্পানির ব্যবহারকারী যোগ ও বাতিল করুন',
       },
+    },
+    partners: {
+      title: 'অংশীদার',
+      subtitle: 'অংশীদার ও বিনিয়োগকারী পরিচালনা করুন —',
+      addPartner: 'অংশীদার যোগ করুন',
+      partnerName: 'অংশীদারের নাম...',
+      noPartners: 'এখনো কোনো অংশীদার নেই',
+      noPartnersDesc: 'লেনদেনে ট্যাগ করতে অংশীদার যোগ করুন',
+      accessDeniedDesc: 'শুধুমাত্র কোম্পানি অ্যাডমিন অংশীদার পরিচালনা করতে পারেন।',
+      selectPartner: 'অংশীদার (ঐচ্ছিক)',
     },
     categories: {
       title: 'বিভাগসমূহ',
