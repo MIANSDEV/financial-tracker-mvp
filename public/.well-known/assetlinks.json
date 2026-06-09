@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.miansitfarm.financialtracker",
+    "sha256_cert_fingerprints": [
+      "54:C6:CF:95:7A:EF:90:F8:7F:EE:5A:B3:03:99:7D:70:3E:BE:E9:59:8E:8E:FB:32:62:ED:A2:9C:8F:FB:99:D8"
+    ]
+  }
+}]
