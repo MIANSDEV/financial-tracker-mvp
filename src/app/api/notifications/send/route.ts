@@ -80,12 +80,15 @@ export async function POST(req: NextRequest) {
         notification: {
           title,
           body: message,
-          icon: '/icons/icon-192x192.png',
-          badge: '/icons/badge-72x72.png',
+          icon: 'https://financial-tracker-mvp.vercel.app/icons/icon-192x192.png',
+          badge: 'https://financial-tracker-mvp.vercel.app/icons/badge-72x72.png',
           tag: type,
           renotify: true,
+          vibrate: [200, 100, 200],
         },
-        fcmOptions: { link: '/notifications' },
+        fcmOptions: {
+          link: 'https://financial-tracker-mvp.vercel.app/notifications',
+        },
       },
     });
 
