@@ -49,8 +49,6 @@ CLAUDE.md
 *.keystore
 *.jks
 
-# Built APK binaries — large binary files served from hosting
-/public/downloads/
 
 # APK build script — contains hardcoded keystore password (security sensitive)
 /scripts/build-apk-core.js
