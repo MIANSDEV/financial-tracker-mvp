@@ -132,8 +132,6 @@ export function AppFooter() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  if (isInstalled) return null;
-
   const handleInstallApp = () => {
     const prompt = window.__pwaPrompt;
     if (prompt) {
@@ -148,33 +146,36 @@ export function AppFooter() {
       {showAndroidModal && <AndroidInstallModal onClose={() => setShowAndroidModal(false)} />}
 
       <footer className="border-t border-gray-100 dark:border-gray-800/60 bg-white dark:bg-gray-900 px-4 lg:px-6 py-2 flex items-center gap-2 shrink-0">
-        <p className="text-[11px] text-gray-400 dark:text-gray-600 hidden sm:block select-none tracking-wide flex-1">
+        <p className="text-[11px] text-gray-400 dark:text-gray-600 select-none tracking-wide flex-1">
           Financial Tracker · Mians IT Farm
         </p>
-        <div className="flex items-center gap-2 ml-auto">
-          {/* Android: open install modal */}
-          {isAndroid && !canInstallNative && (
-            <button
-              onClick={() => setShowAndroidModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-50 dark:bg-brand-900/30 border border-brand-200 dark:border-brand-700/50 text-brand-700 dark:text-brand-300 text-xs font-semibold transition-colors hover:bg-brand-100 dark:hover:bg-brand-900/50"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              Get Android App
-            </button>
-          )}
 
-          {/* Native PWA install prompt */}
-          {canInstallNative && (
-            <button
-              onClick={handleInstallApp}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors shadow-sm shadow-brand-600/20"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Install App — Free</span>
-              <span className="sm:hidden">Install</span>
-            </button>
-          )}
-        </div>
+        {!isInstalled && (
+          <div className="flex items-center gap-2">
+            {/* Android: open install modal */}
+            {isAndroid && !canInstallNative && (
+              <button
+                onClick={() => setShowAndroidModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-50 dark:bg-brand-900/30 border border-brand-200 dark:border-brand-700/50 text-brand-700 dark:text-brand-300 text-xs font-semibold transition-colors hover:bg-brand-100 dark:hover:bg-brand-900/50"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                Get Android App
+              </button>
+            )}
+
+            {/* Native PWA install prompt */}
+            {canInstallNative && (
+              <button
+                onClick={handleInstallApp}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors shadow-sm shadow-brand-600/20"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Install App — Free</span>
+                <span className="sm:hidden">Install</span>
+              </button>
+            )}
+          </div>
+        )}
       </footer>
     </>
   );
