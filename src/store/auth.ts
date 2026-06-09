@@ -29,14 +29,14 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-store',
-      partialize: (state) => ({ user: state.user, company: state.company }),
-      onRehydrateStorage: () => (state) => {
-        // If localStorage has a cached user, render content immediately.
-        // Firebase will re-validate the session silently in the background.
-        if (state?.user) {
-          state.loading = false;
-        }
-      },
+      // Persist loading:false alongside the user so the store rehydrates
+      // with loading already resolved — prevents the spinner on return visits
+      // even before Firebase Auth fires its first callback.
+      partialize: (state) => ({
+        user: state.user,
+        company: state.company,
+        ...(state.user ? { loading: false } : {}),
+      }),
     }
   )
 );

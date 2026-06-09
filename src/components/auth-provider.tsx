@@ -23,34 +23,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setCompany, setCompanyRoles, setLoading, reset } = useAuthStore();
 
   useEffect(() => {
+    let callbackFired = false;
+
+    // Safety net: if onAuthStateChanged never fires (expired token + no network,
+    // IndexedDB unavailable on Android WebView, etc.) force loading:false after
+    // 8 s so the spinner never hangs forever on web or APK.
+    const bailout = setTimeout(() => {
+      if (!callbackFired) {
+        useAuthStore.getState().reset();
+      }
+    }, 8000);
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      callbackFired = true;
+      clearTimeout(bailout);
+
       if (!firebaseUser) {
         reset();
         return;
       }
 
-      // Only show the loading spinner if we have no cached user data.
-      // On return visits the UI renders from localStorage instantly;
-      // Firebase validates the session silently in the background.
+      // Only show the loading spinner when there is no cached user.
+      // On return visits the store already has loading:false (persisted),
+      // so Firebase validates the session silently in the background.
       if (!useAuthStore.getState().user) setLoading(true);
 
       try {
         const TIMED_OUT = Symbol('timeout');
-        // Add a timeout so "offline" Firestore doesn't hang forever
+        // 5 s is enough; offline Firestore rejects almost immediately anyway
         const userResult = await Promise.race([
           getUser(firebaseUser.uid),
-          new Promise<typeof TIMED_OUT>((resolve) => setTimeout(() => resolve(TIMED_OUT), 8000)),
+          new Promise<typeof TIMED_OUT>((resolve) => setTimeout(() => resolve(TIMED_OUT), 5000)),
         ]);
 
         if (userResult === TIMED_OUT) {
-          // Firestore unreachable — let the user in with Auth data as fallback
           setUser(buildFallbackUser(firebaseUser));
           setLoading(false);
           return;
         }
 
         if (!userResult) {
-          // User document was deleted (company removed) — force sign-out
           await signOut(auth);
           reset();
           return;
@@ -78,7 +90,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           msg.includes('UNAVAILABLE');
 
         if (isOffline) {
-          // Firestore not reachable — still let the user in with Auth data
           setUser(buildFallbackUser(firebaseUser));
         } else {
           console.error('Auth provider error:', error);
@@ -89,7 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(bailout);
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
