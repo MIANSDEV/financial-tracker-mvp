@@ -340,7 +340,10 @@ export async function getNotificationSettings(userId: string): Promise<Notificat
   if (!snap.exists()) return null;
   const data = snap.data();
   return {
+    pushEnabled: true,
+    emailEnabled: false,
     ...data,
+    types: { system: true, financial: true, activity: true, reports: false, ...(data.types ?? {}) },
     updatedAt: toDate(data.updatedAt),
   } as NotificationSettings;
 }

@@ -90,7 +90,13 @@ export default function SettingsPage() {
     setMounted(true);
     if (!user?.id) return;
     getNotificationSettings(user.id).then((s) => {
-      if (s) setSettings(s);
+      if (s) {
+        setSettings({
+          ...defaultSettings,
+          ...s,
+          types: { ...defaultSettings.types, ...(s.types ?? {}) },
+        });
+      }
     });
   }, [user?.id]);
 
