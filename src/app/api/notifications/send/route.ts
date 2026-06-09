@@ -37,11 +37,14 @@ export async function POST(req: NextRequest) {
     const settingsSnap = await adminDb.collection('notification_settings').doc(userId).get();
     const settings = settingsSnap.data();
 
-    if (!settings?.pushEnabled) {
+    // Treat missing pushEnabled as true (old documents didn't have this field)
+    if (settings.pushEnabled === false) {
       return NextResponse.json({ success: true, push: false, reason: 'push_disabled' });
     }
 
-    if (!settings.types?.[type] && type !== 'system') {
+    // If types map is missing (old document), default all types to enabled
+    const typeAllowed = settings.types ? settings.types[type] !== false : true;
+    if (!typeAllowed && type !== 'system') {
       return NextResponse.json({ success: true, push: false, reason: `type_${type}_disabled` });
     }
 
