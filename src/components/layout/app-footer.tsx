@@ -145,7 +145,7 @@ export function AppFooter() {
     <>
       {showAndroidModal && <AndroidInstallModal onClose={() => setShowAndroidModal(false)} />}
 
-      <footer className="border-t border-gray-100 dark:border-gray-800/60 bg-white dark:bg-gray-900 px-4 lg:px-6 py-2 flex items-center gap-2 shrink-0">
+      <footer className="hidden lg:flex border-t border-gray-100 dark:border-gray-800/60 bg-white dark:bg-gray-900 px-4 lg:px-6 py-2 items-center gap-2 shrink-0">
         <p className="text-[11px] text-gray-400 dark:text-gray-600 select-none tracking-wide flex-1">
           Financial Tracker · Mians IT Farm
         </p>
