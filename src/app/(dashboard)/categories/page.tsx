@@ -162,10 +162,10 @@ function CategoryColumn({
         <button
           onClick={handleAdd}
           disabled={addSaving || !addValue.trim()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white transition-colors shrink-0"
         >
           <Plus className="w-4 h-4" />
-          {t.common.add}
+          <span className="hidden sm:inline">{t.common.add}</span>
         </button>
       </div>
     </Card>

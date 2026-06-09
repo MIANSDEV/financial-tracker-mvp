@@ -149,7 +149,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+            <div className="fixed left-3 right-3 top-[4.25rem] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
                 <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
                   {t.topbar.notifications} {unreadCount > 0 && <span className="text-brand-600">({unreadCount})</span>}
