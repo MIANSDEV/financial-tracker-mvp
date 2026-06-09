@@ -14,6 +14,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading } = useAuthStore();
   const router = useRouter();
 
+  // Synchronous localStorage read — runs before the first render on the
+  // client so we never flash the spinner when cached auth data exists.
+  const [hasCachedUser] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = localStorage.getItem('auth-store');
+      return !!(raw && (JSON.parse(raw) as { state?: { user?: unknown } })?.state?.user);
+    } catch {
+      return false;
+    }
+  });
+
   useEffect(() => {
     // Only redirect once loading is done AND there is definitely no user
     if (!loading && !user) {
@@ -21,8 +33,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [user, loading, router]);
 
-  // Still determining auth state — show full-screen spinner
-  if (loading) {
+  // Show full-screen spinner only on a true cold start (no cached user at all)
+  if (loading && !hasCachedUser) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 gap-4">
         <div className="w-12 h-12 rounded-2xl bg-brand-600 flex items-center justify-center shadow-lg">
