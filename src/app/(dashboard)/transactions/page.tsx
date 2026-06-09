@@ -55,6 +55,8 @@ export default function TransactionsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [quick, setQuick] = useState(emptyQuick);
   const [quickPartnerIds, setQuickPartnerIds] = useState<string[]>([]);
+  const [mirrorExpense, setMirrorExpense] = useState(false);
+  const [expenseCategory, setExpenseCategory] = useState('');
 
   const fetchTransactions = async () => {
     if (!company?.id) { setLoading(false); return; }
@@ -83,50 +85,63 @@ export default function TransactionsPage() {
       toast.error('Fill in description, category and amount');
       return;
     }
+    if (mirrorExpense && !expenseCategory) {
+      toast.error('Select an expense category for the mirrored entry');
+      return;
+    }
     if (!user || !company) return;
     setSaving(true);
     try {
       const selectedPartners = partners.filter((p) => quickPartnerIds.includes(p.id));
-      const txnId = await createTransaction({
-        type: quick.type,
+      const partnerPayload = selectedPartners.length > 0
+        ? { partnerIds: selectedPartners.map((p) => p.id), partnerNames: selectedPartners.map((p) => p.name) }
+        : {};
+      const base = {
         description: quick.description.trim(),
-        category: quick.category,
         amount,
         date: new Date(quick.date),
         companyId: company.id,
         createdBy: user.id,
         createdByName: user.name,
-        ...(selectedPartners.length > 0 && {
-          partnerIds: selectedPartners.map((p) => p.id),
-          partnerNames: selectedPartners.map((p) => p.name),
-        }),
-      });
+        ...partnerPayload,
+      };
+
+      const saves: Promise<string>[] = [
+        createTransaction({ ...base, type: quick.type, category: quick.category }),
+      ];
+      if (mirrorExpense) {
+        const mirrorType = quick.type === 'income' ? 'expense' : 'income';
+        saves.push(createTransaction({ ...base, type: mirrorType, category: expenseCategory }));
+      }
+
+      const ids = await Promise.all(saves);
       await Promise.all([
         createNotification({
           userId: user.id,
           companyId: company.id,
-          title: `${quick.type === 'income' ? 'Income' : 'Expense'} added`,
+          title: `${quick.type === 'income' ? 'Income' : 'Expense'} added${mirrorExpense ? ' (+mirror)' : ''}`,
           message: `${quick.description.trim()} — ${formatCurrency(amount)}`,
           type: 'activity',
           read: false,
           timestamp: new Date(),
         }),
-        createAuditLog({
+        ...ids.map((id) => createAuditLog({
           companyId: company.id,
           userId: user.id,
           userName: user.name,
           action: 'CREATE',
           resource: 'transaction',
-          resourceId: txnId,
+          resourceId: id,
           details: quick,
-        }),
+        })),
       ]);
-      // keep type + date, reset the rest so user can add the next one fast
+
       setQuick((prev) => ({ ...emptyQuick(), type: prev.type, date: prev.date }));
       setQuickPartnerIds([]);
+      setExpenseCategory('');
       setTimeout(() => descRef.current?.focus(), 0);
       fetchTransactions();
-      toast.success('Transaction added');
+      toast.success(mirrorExpense ? '2 transactions added' : 'Transaction added');
     } catch {
       toast.error('Failed to add transaction');
     } finally {
@@ -317,13 +332,53 @@ export default function TransactionsPage() {
             />
           </div>
 
+          {/* Mirror toggle */}
+          <div className="flex items-center gap-3 my-2">
+            <button
+              type="button"
+              onClick={() => setMirrorExpense((v) => !v)}
+              className={cn(
+                'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none',
+                mirrorExpense ? 'bg-brand-600' : 'bg-gray-200 dark:bg-gray-700'
+              )}
+            >
+              <span className={cn(
+                'inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform',
+                mirrorExpense ? 'translate-x-[18px]' : 'translate-x-0.5'
+              )} />
+            </button>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Also add as <strong>{quick.type === 'income' ? 'expense' : 'income'}</strong>
+            </span>
+          </div>
+
+          {/* Mirror category picker */}
+          {mirrorExpense && (
+            <div className="mb-3">
+              <select
+                value={expenseCategory}
+                onChange={(e) => setExpenseCategory(e.target.value)}
+                className="w-full sm:w-64 px-3 py-2 rounded-lg border border-brand-300 dark:border-brand-700 text-sm bg-brand-50 dark:bg-brand-900/20 text-brand-800 dark:text-brand-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="">
+                  Select {quick.type === 'income' ? 'expense' : 'income'} category…
+                </option>
+                {categories
+                  .filter((c) => c.type !== quick.type)
+                  .map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+              </select>
+            </div>
+          )}
+
           <Button
             onClick={handleQuickAdd}
             loading={saving}
             leftIcon={<Plus className="w-4 h-4" />}
             className="w-full sm:w-auto"
           >
-            Add Transaction
+            {mirrorExpense ? 'Add Both' : 'Add Transaction'}
           </Button>
         </Card>
       )}

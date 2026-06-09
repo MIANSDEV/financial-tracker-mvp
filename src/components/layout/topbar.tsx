@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Menu, Bell, Moon, Sun, LogOut, ChevronDown, Check, CheckCheck, UserCircle, Settings } from 'lucide-react';
+import { Menu, Bell, Moon, Sun, LogOut, ChevronDown, Check, CheckCheck, UserCircle, Settings, Download } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { useRouter } from 'next/navigation';
@@ -30,6 +30,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const { markRead, markAllRead } = useNotificationStore();
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  const [canInstallNative, setCanInstallNative] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
 
@@ -41,6 +42,21 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as { standalone?: boolean }).standalone === true;
+    if (standalone) return;
+    if (window.__pwaPrompt) setCanInstallNative(true);
+    const handler = () => setCanInstallNative(true);
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = () => {
+    window.__pwaPrompt?.prompt();
+  };
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -71,6 +87,18 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       <div className="flex-1 lg:flex-none" />
 
       <div className="flex items-center gap-2">
+        {/* Install App — only visible when Chrome has a native one-click prompt ready */}
+        {canInstallNative && (
+          <button
+            onClick={handleInstallClick}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white text-xs font-semibold transition-colors shadow-sm shadow-brand-600/25"
+            title="Install app"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Install App
+          </button>
+        )}
+
         {/* Language toggle */}
         <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
           <button

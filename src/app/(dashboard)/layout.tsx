@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
+import { AppFooter } from '@/components/layout/app-footer';
 import { useAuthStore } from '@/store/auth';
 import { TrendingUp } from 'lucide-react';
 
@@ -49,6 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {children}
         </main>
+        <AppFooter />
       </div>
 
     </div>

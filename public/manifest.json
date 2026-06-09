@@ -110,6 +110,22 @@
       "purpose": "maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "/screenshots/screen-dashboard.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Dashboard — income, expenses & profit at a glance"
+    },
+    {
+      "src": "/screenshots/screen-transactions.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Transactions — add & manage your records"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Dashboard",

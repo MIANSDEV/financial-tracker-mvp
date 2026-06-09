@@ -1,0 +1,41 @@
+{
+  "packageId": "com.miansitfarm.financialtracker",
+  "host": "financial-tracker-mvp.vercel.app",
+  "name": "Financial Tracker",
+  "launcherName": "FinTracker",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#0ea5e9",
+  "navigationColor": "#0f172a",
+  "navigationColorDark": "#0f172a",
+  "navigationDividerColor": "#0f172a",
+  "navigationDividerColorDark": "#0f172a",
+  "backgroundColor": "#0f172a",
+  "enableNotifications": true,
+  "startUrl": "/dashboard",
+  "iconUrl": "https://financial-tracker-mvp.vercel.app/icons/icon-512x512.png",
+  "maskableIconUrl": "https://financial-tracker-mvp.vercel.app/icons/icon-512x512.png",
+  "monochromeIconUrl": "https://financial-tracker-mvp.vercel.app/icons/icon-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android-apk/signing/financial-tracker.keystore",
+    "alias": "financial-tracker"
+  },
+  "appVersionCode": 1,
+  "appVersionName": "1.0.0",
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://financial-tracker-mvp.vercel.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": { "enabled": true },
+    "playBilling": { "enabled": false }
+  },
+  "alphaDependencies": { "enabled": false },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://financial-tracker-mvp.vercel.app/",
+  "minSdkVersion": 21,
+  "fingerprints": []
+}

@@ -10,7 +10,8 @@
     "setup:admin": "node scripts/create-super-admin.js",
     "setup:icons": "node scripts/generate-icons.js",
     "firebase:login": "firebase login",
-    "firebase:deploy": "firebase deploy --only firestore:rules,firestore:indexes --project financial-tracker-ea93e"
+    "firebase:deploy": "firebase deploy --only firestore:rules,firestore:indexes --project financial-tracker-ea93e",
+    "build:apk": "node scripts/build-apk.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

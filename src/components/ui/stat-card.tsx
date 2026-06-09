@@ -5,6 +5,7 @@ interface StatCardProps {
   title: string;
   value: number;
   change?: number;
+  changeLabel?: string;
   icon: React.ReactNode;
   color: 'green' | 'red' | 'blue' | 'purple';
   prefix?: string;
@@ -33,7 +34,7 @@ const colorMap = {
   },
 };
 
-export function StatCard({ title, value, change, icon, color }: StatCardProps) {
+export function StatCard({ title, value, change, changeLabel = 'vs last month', icon, color }: StatCardProps) {
   const colors = colorMap[color];
 
   return (
@@ -60,7 +61,7 @@ export function StatCard({ title, value, change, icon, color }: StatCardProps) {
           >
             {formatPercent(change)}
           </span>
-          <span className="text-xs text-gray-400 dark:text-gray-500">vs last month</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">{changeLabel}</span>
         </div>
       )}
     </div>
