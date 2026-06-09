@@ -13,11 +13,11 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
-  createNotification,
   createAuditLog,
   getCompanyCategories,
   getCompanyPartners,
 } from '@/lib/firebase/firestore';
+import { notify } from '@/lib/notify';
 import { formatCurrency, formatDate, exportToCSV } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Transaction, Category, Partner } from '@/types';
@@ -117,14 +117,12 @@ export default function TransactionsPage() {
 
       const ids = await Promise.all(saves);
       await Promise.all([
-        createNotification({
+        notify({
           userId: user.id,
           companyId: company.id,
           title: `${quick.type === 'income' ? 'Income' : 'Expense'} added${mirrorExpense ? ' (+mirror)' : ''}`,
           message: `${quick.description.trim()} — ${formatCurrency(amount)}`,
           type: 'activity',
-          read: false,
-          timestamp: new Date(),
         }),
         ...ids.map((id) => createAuditLog({
           companyId: company.id,
@@ -168,15 +166,24 @@ export default function TransactionsPage() {
         partnerIds: selectedPartners.map((p) => p.id),
         partnerNames: selectedPartners.map((p) => p.name),
       });
-      await createAuditLog({
-        companyId: company.id,
-        userId: user.id,
-        userName: user.name,
-        action: 'UPDATE',
-        resource: 'transaction',
-        resourceId: editTarget.id,
-        details: data,
-      });
+      await Promise.all([
+        createAuditLog({
+          companyId: company.id,
+          userId: user.id,
+          userName: user.name,
+          action: 'UPDATE',
+          resource: 'transaction',
+          resourceId: editTarget.id,
+          details: data,
+        }),
+        notify({
+          userId: user.id,
+          companyId: company.id,
+          title: 'Transaction updated',
+          message: `${data.description} — ${formatCurrency(data.amount)}`,
+          type: 'activity',
+        }),
+      ]);
       toast.success('Transaction updated');
       setModalOpen(false);
       setEditTarget(null);

@@ -19,48 +19,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Lazy load admin SDK only at runtime
     const { getAdminDb, getAdminMessaging } = await import('@/lib/firebase/admin');
     const adminDb = getAdminDb();
-    const adminMessagingInstance = getAdminMessaging();
 
-    // Check user notification settings
-    const settingsSnap = await adminDb.collection('notification_settings').doc(userId).get();
-    const settings = settingsSnap.data();
-
-    if (!settings) {
-      return NextResponse.json({ skipped: true, reason: 'no_settings' });
-    }
-
-    if (!settings.pushEnabled) {
-      return NextResponse.json({ skipped: true, reason: 'push_disabled' });
-    }
-
-    if (!settings.types?.[type] && type !== 'system') {
-      return NextResponse.json({ skipped: true, reason: `type_${type}_disabled` });
-    }
-
-    const fcmToken = settings.fcmToken;
-    if (!fcmToken) {
-      return NextResponse.json({ skipped: true, reason: 'no_fcm_token' });
-    }
-
-    // Frequency limiting: max 3 notifications of same type per day
-    const dayStart = new Date();
-    dayStart.setHours(0, 0, 0, 0);
-
-    const recentSnap = await adminDb
-      .collection('notifications')
-      .where('userId', '==', userId)
-      .where('type', '==', type)
-      .where('timestamp', '>=', dayStart)
-      .get();
-
-    if (recentSnap.size >= 3 && type !== 'system') {
-      return NextResponse.json({ skipped: true, reason: 'rate_limited' });
-    }
-
-    // Store notification in Firestore
+    // Always write to Firestore so the in-app bell works regardless of push settings
     await adminDb.collection('notifications').add({
       userId,
       companyId: companyId || null,
@@ -71,7 +33,40 @@ export async function POST(req: NextRequest) {
       timestamp: new Date(),
     });
 
-    // Send FCM push notification
+    // Now check whether to send FCM push
+    const settingsSnap = await adminDb.collection('notification_settings').doc(userId).get();
+    const settings = settingsSnap.data();
+
+    if (!settings?.pushEnabled) {
+      return NextResponse.json({ success: true, push: false, reason: 'push_disabled' });
+    }
+
+    if (!settings.types?.[type] && type !== 'system') {
+      return NextResponse.json({ success: true, push: false, reason: `type_${type}_disabled` });
+    }
+
+    const fcmToken = settings.fcmToken as string | undefined;
+    if (!fcmToken) {
+      return NextResponse.json({ success: true, push: false, reason: 'no_fcm_token' });
+    }
+
+    // Rate limit: max 3 non-system pushes per user per day
+    if (type !== 'system') {
+      const dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+      const recentSnap = await adminDb
+        .collection('notifications')
+        .where('userId', '==', userId)
+        .where('type', '==', type)
+        .where('timestamp', '>=', dayStart)
+        .get();
+      if (recentSnap.size > 3) {
+        return NextResponse.json({ success: true, push: false, reason: 'rate_limited' });
+      }
+    }
+
+    // Send FCM push
+    const adminMessagingInstance = getAdminMessaging();
     await adminMessagingInstance.send({
       token: fcmToken,
       notification: { title, body: message },
@@ -92,7 +87,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, push: true });
   } catch (error) {
     console.error('Notification send error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

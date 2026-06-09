@@ -17,7 +17,7 @@ import {
   deleteCompany,
   createUser,
   createSubscriptionPayment,
-  createNotification,
+
   createCompanyRole,
   createCategory,
 } from '@/lib/firebase/firestore';
@@ -28,6 +28,7 @@ import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
 import { useT } from '@/lib/i18n/use-t';
+import { notify } from '@/lib/notify';
 
 const schema = z.object({
   name: z.string().min(2, 'Company name is required'),
@@ -134,13 +135,11 @@ export default function CompaniesPage() {
       }
 
       if (user?.id) {
-        await createNotification({
+        await notify({
           userId: user.id,
           title: 'New company created',
           message: `${data.name} has been added on the ${data.subscriptionPlan} plan.`,
           type: 'system',
-          read: false,
-          timestamp: new Date(),
         });
       }
 
@@ -165,13 +164,11 @@ export default function CompaniesPage() {
       prev.map((co) => (co.id === c.id ? { ...co, status: newStatus } : co))
     );
     if (user?.id) {
-      await createNotification({
+      await notify({
         userId: user.id,
         title: `Company ${newStatus}`,
         message: `${c.name} has been set to ${newStatus}.`,
         type: 'system',
-        read: false,
-        timestamp: new Date(),
       });
     }
     toast.success(`Company ${newStatus}`);

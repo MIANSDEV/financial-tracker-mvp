@@ -15,7 +15,6 @@ import {
   createSubscriptionPayment,
   markPaymentPaid,
   updateSubscriptionPayment,
-  createNotification,
 } from '@/lib/firebase/firestore';
 import { formatDate, formatCurrency, addDays } from '@/lib/utils';
 import type { SubscriptionPayment, Company, PaymentStatus } from '@/types';
@@ -23,6 +22,7 @@ import { SUBSCRIPTION_PLANS } from '@/types';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n/use-t';
+import { notify } from '@/lib/notify';
 
 const schema = z.object({
   companyId: z.string().min(1, 'Select a company'),
@@ -104,13 +104,11 @@ export default function SubscriptionsPage() {
     try {
       await markPaymentPaid(payment.id, payment.companyId, payment.periodEnd);
       if (user?.id) {
-        await createNotification({
+        await notify({
           userId: user.id,
           title: 'Payment received',
           message: `${payment.companyName} paid ${formatCurrency(payment.amount)} for the ${SUBSCRIPTION_PLANS[payment.plan].label} plan.`,
           type: 'financial',
-          read: false,
-          timestamp: new Date(),
         });
       }
       toast.success(`Payment marked as paid for ${payment.companyName}`);
@@ -153,13 +151,11 @@ export default function SubscriptionsPage() {
         notes: data.notes,
       });
       if (user?.id) {
-        await createNotification({
+        await notify({
           userId: user.id,
           title: 'Payment record added',
           message: `${company.name} — ${SUBSCRIPTION_PLANS[data.plan].label} plan, ${formatCurrency(plan.price)} due on ${new Date(data.dueDate).toLocaleDateString()}.`,
           type: 'financial',
-          read: false,
-          timestamp: new Date(),
         });
       }
       toast.success('Payment record created');
