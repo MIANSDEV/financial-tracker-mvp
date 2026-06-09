@@ -138,67 +138,91 @@ export default function UsersPage() {
         </div>
       ) : (
         <Card padding={false}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-800">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t.users.user}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t.users.role}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t.users.joined}</th>
-                  <th className="px-6 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                {users.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-400 dark:text-gray-600">
-                      {t.users.noUsers}
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold">
-                            {u.name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white">{u.name}</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500">{u.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge variant={roleVariant[u.role] || 'default'}>
-                          {u.role.replace('_', ' ')}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400 text-xs">
-                        {formatDate(u.createdAt)}
-                      </td>
-                      <td className="px-6 py-4">
-                        {u.id !== user?.id && (
-                          <div className="flex justify-end">
-                            {deleteConfirm === u.id ? (
-                              <div className="flex gap-1">
-                                <button onClick={() => handleDelete(u.id)} className="px-2 py-1 rounded text-xs bg-red-500 text-white">{t.common.confirm}</button>
-                                <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">{t.common.cancel}</button>
-                              </div>
-                            ) : (
-                              <button onClick={() => setDeleteConfirm(u.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </td>
+          {users.length === 0 ? (
+            <div className="px-6 py-12 text-center text-gray-400 dark:text-gray-600 text-sm">{t.users.noUsers}</div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-gray-800">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t.users.user}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t.users.role}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t.users.joined}</th>
+                      <th className="px-6 py-3" />
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {users.map((u) => (
+                      <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold">{u.name.slice(0, 2).toUpperCase()}</div>
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">{u.name}</p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500">{u.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4"><Badge variant={roleVariant[u.role] || 'default'}>{u.role.replace('_', ' ')}</Badge></td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400 text-xs">{formatDate(u.createdAt)}</td>
+                        <td className="px-6 py-4">
+                          {u.id !== user?.id && (
+                            <div className="flex justify-end">
+                              {deleteConfirm === u.id ? (
+                                <div className="flex gap-1">
+                                  <button onClick={() => handleDelete(u.id)} className="px-2 py-1 rounded text-xs bg-red-500 text-white">{t.common.confirm}</button>
+                                  <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">{t.common.cancel}</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => setDeleteConfirm(u.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card list */}
+              <div className="sm:hidden divide-y divide-gray-100 dark:divide-gray-800">
+                {users.map((u) => (
+                  <div key={u.id} className="px-4 py-3.5 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-brand-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                      {u.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{u.name}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{u.email}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant={roleVariant[u.role] || 'default'}>{u.role.replace('_', ' ')}</Badge>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">{formatDate(u.createdAt)}</span>
+                      </div>
+                    </div>
+                    {u.id !== user?.id && (
+                      <div className="shrink-0">
+                        {deleteConfirm === u.id ? (
+                          <div className="flex gap-1">
+                            <button onClick={() => handleDelete(u.id)} className="px-2 py-1 rounded text-xs bg-red-500 text-white">{t.common.confirm}</button>
+                            <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">{t.common.cancel}</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setDeleteConfirm(u.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </Card>
       )}
 

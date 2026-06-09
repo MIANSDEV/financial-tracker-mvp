@@ -495,100 +495,125 @@ export default function TransactionsPage() {
             <p className="text-xs mt-1">{t.transactions.adjustFilters}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-800">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.date}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.description}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.category}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.partner}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.type}</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.amount}</th>
-                  {(perms.canEditTransactions || perms.canDeleteTransactions) && <th className="px-6 py-3" />}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                {filtered.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                    <td className="px-6 py-3.5 whitespace-nowrap text-gray-500 dark:text-gray-400 text-xs">
-                      {formatDate(tx.date)}
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <p className="font-medium text-gray-900 dark:text-white">{tx.description}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t.transactions.addedBy} {tx.createdByName}</p>
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <Badge variant="default">{tx.category}</Badge>
-                    </td>
-                    <td className="px-6 py-3.5">
-                      {tx.partnerNames?.length ? (
-                        <div className="flex flex-wrap gap-1">
-                          {tx.partnerNames.map((name) => (
-                            <span key={name} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
-                              {name}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-300 dark:text-gray-700 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <Badge variant={tx.type === 'income' ? 'success' : 'danger'}>
-                        {tx.type === 'income' ? t.transactions.income : t.transactions.expense}
-                      </Badge>
-                    </td>
-                    <td className={cn(
-                      'px-6 py-3.5 text-right font-semibold whitespace-nowrap',
-                      tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                    )}>
-                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                    </td>
-                    {(perms.canEditTransactions || perms.canDeleteTransactions) && (
+          <>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-800">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.date}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.description}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.category}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.partner}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.type}</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.amount}</th>
+                    {(perms.canEditTransactions || perms.canDeleteTransactions) && <th className="px-6 py-3" />}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                  {filtered.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                      <td className="px-6 py-3.5 whitespace-nowrap text-gray-500 dark:text-gray-400 text-xs">{formatDate(tx.date)}</td>
                       <td className="px-6 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
+                        <p className="font-medium text-gray-900 dark:text-white">{tx.description}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t.transactions.addedBy} {tx.createdByName}</p>
+                      </td>
+                      <td className="px-6 py-3.5"><Badge variant="default">{tx.category}</Badge></td>
+                      <td className="px-6 py-3.5">
+                        {tx.partnerNames?.length ? (
+                          <div className="flex flex-wrap gap-1">
+                            {tx.partnerNames.map((name) => (
+                              <span key={name} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">{name}</span>
+                            ))}
+                          </div>
+                        ) : <span className="text-gray-300 dark:text-gray-700 text-xs">—</span>}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <Badge variant={tx.type === 'income' ? 'success' : 'danger'}>
+                          {tx.type === 'income' ? t.transactions.income : t.transactions.expense}
+                        </Badge>
+                      </td>
+                      <td className={cn('px-6 py-3.5 text-right font-semibold whitespace-nowrap', tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+                        {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                      </td>
+                      {(perms.canEditTransactions || perms.canDeleteTransactions) && (
+                        <td className="px-6 py-3.5">
+                          <div className="flex items-center justify-end gap-1">
+                            {perms.canEditTransactions && (
+                              <button onClick={() => { setEditTarget(tx); setModalOpen(true); }} className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20">
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            )}
+                            {perms.canDeleteTransactions && (
+                              deleteConfirm === tx.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => handleDelete(tx.id)} className="px-2 py-1 rounded text-xs bg-red-500 text-white">{t.common.confirm}</button>
+                                  <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">{t.common.cancel}</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => setDeleteConfirm(tx.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile card list */}
+            <div className="sm:hidden divide-y divide-gray-100 dark:divide-gray-800">
+              {filtered.map((tx) => (
+                <div key={tx.id} className="px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{tx.description}</p>
+                      <div className="flex items-center flex-wrap gap-1.5 mt-1">
+                        <Badge variant={tx.type === 'income' ? 'success' : 'danger'}>
+                          {tx.type === 'income' ? t.transactions.income : t.transactions.expense}
+                        </Badge>
+                        <Badge variant="default">{tx.category}</Badge>
+                        {tx.partnerNames?.map((name) => (
+                          <span key={name} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">{name}</span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{formatDate(tx.date)} · {tx.createdByName}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span className={cn('font-bold text-sm', tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+                        {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                      </span>
+                      {(perms.canEditTransactions || perms.canDeleteTransactions) && (
+                        <div className="flex gap-1">
                           {perms.canEditTransactions && (
-                            <button
-                              onClick={() => { setEditTarget(tx); setModalOpen(true); }}
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20"
-                            >
-                              <Pencil className="w-4 h-4" />
+                            <button onClick={() => { setEditTarget(tx); setModalOpen(true); }} className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20">
+                              <Pencil className="w-3.5 h-3.5" />
                             </button>
                           )}
                           {perms.canDeleteTransactions && (
                             deleteConfirm === tx.id ? (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => handleDelete(tx.id)}
-                                  className="px-2 py-1 rounded text-xs bg-red-500 text-white hover:bg-red-600"
-                                >
-                                  {t.common.confirm}
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirm(null)}
-                                  className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                                >
-                                  {t.common.cancel}
-                                </button>
+                              <div className="flex gap-1">
+                                <button onClick={() => handleDelete(tx.id)} className="px-2 py-1 rounded text-xs bg-red-500 text-white">{t.common.confirm}</button>
+                                <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">{t.common.cancel}</button>
                               </div>
                             ) : (
-                              <button
-                                onClick={() => setDeleteConfirm(tx.id)}
-                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              >
-                                <Trash2 className="w-4 h-4" />
+                              <button onClick={() => setDeleteConfirm(tx.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )
                           )}
                         </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
 

@@ -87,38 +87,46 @@ export default function AuditLogsPage() {
             <p className="text-sm">{t.auditLogs.noLogs}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-800">
-                  {[t.auditLogs.timestamp, t.auditLogs.user, t.auditLogs.action, t.auditLogs.resource, t.auditLogs.details].map((h) => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td className="px-6 py-3.5 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {formatDateTime(log.timestamp)}
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <p className="font-medium text-gray-900 dark:text-white text-sm">{log.userName}</p>
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <Badge variant={actionVariant[log.action] || 'default'}>{log.action}</Badge>
-                    </td>
-                    <td className="px-6 py-3.5 text-gray-600 dark:text-gray-400 capitalize">
-                      {log.resource}
-                    </td>
-                    <td className="px-6 py-3.5 text-xs text-gray-400 dark:text-gray-500 font-mono truncate max-w-[200px]">
-                      {log.resourceId}
-                    </td>
+          <>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-800">
+                    {[t.auditLogs.timestamp, t.auditLogs.user, t.auditLogs.action, t.auditLogs.resource, t.auditLogs.details].map((h) => (
+                      <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                  {logs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                      <td className="px-6 py-3.5 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatDateTime(log.timestamp)}</td>
+                      <td className="px-6 py-3.5"><p className="font-medium text-gray-900 dark:text-white text-sm">{log.userName}</p></td>
+                      <td className="px-6 py-3.5"><Badge variant={actionVariant[log.action] || 'default'}>{log.action}</Badge></td>
+                      <td className="px-6 py-3.5 text-gray-600 dark:text-gray-400 capitalize">{log.resource}</td>
+                      <td className="px-6 py-3.5 text-xs text-gray-400 dark:text-gray-500 font-mono truncate max-w-[200px]">{log.resourceId}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile card list */}
+            <div className="sm:hidden divide-y divide-gray-100 dark:divide-gray-800">
+              {logs.map((log) => (
+                <div key={log.id} className="px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <p className="font-semibold text-gray-900 dark:text-white text-sm">{log.userName}</p>
+                    <Badge variant={actionVariant[log.action] || 'default'}>{log.action}</Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 capitalize mb-1">{log.resource}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 font-mono truncate">{log.resourceId}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{formatDateTime(log.timestamp)}</p>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
     </div>
