@@ -1,16 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PartnerMultiSelect } from '@/components/ui/partner-multi-select';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n/use-t';
-import { TRANSACTION_CATEGORIES } from '@/types';
-import type { Transaction } from '@/types';
-
+import type { Transaction, Category, Partner } from '@/types';
 import { format } from 'date-fns';
 
 const schema = z.object({
@@ -26,11 +25,11 @@ type FormValues = z.infer<typeof schema>;
 interface TransactionModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: FormValues) => Promise<void>;
+  onSave: (data: FormValues & { partnerIds: string[] }) => Promise<void>;
   transaction?: Transaction | null;
   loading?: boolean;
-  incomeCategories?: string[];
-  expenseCategories?: string[];
+  categories?: Category[];
+  partners?: Partner[];
 }
 
 export function TransactionModal({
@@ -39,8 +38,8 @@ export function TransactionModal({
   onSave,
   transaction,
   loading = false,
-  incomeCategories,
-  expenseCategories,
+  categories = [],
+  partners = [],
 }: TransactionModalProps) {
   const {
     register,
@@ -55,11 +54,9 @@ export function TransactionModal({
 
   const t = useT();
   const selectedType = watch('type');
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
 
-  const categories =
-    selectedType === 'income'
-      ? (incomeCategories?.length ? incomeCategories : TRANSACTION_CATEGORIES.income)
-      : (expenseCategories?.length ? expenseCategories : TRANSACTION_CATEGORIES.expense);
+  const filteredCategories = categories.filter((c) => c.type === selectedType);
 
   useEffect(() => {
     if (transaction) {
@@ -70,12 +67,18 @@ export function TransactionModal({
         description: transaction.description,
         date: format(new Date(transaction.date), 'yyyy-MM-dd'),
       });
+      setSelectedPartnerIds(transaction.partnerIds ?? []);
     } else {
       reset({ type: 'income', date: format(new Date(), 'yyyy-MM-dd') });
+      setSelectedPartnerIds([]);
     }
   }, [transaction, open]);
 
   if (!open) return null;
+
+  const handleFormSubmit = (data: FormValues) => {
+    return onSave({ ...data, partnerIds: selectedPartnerIds });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -92,7 +95,7 @@ export function TransactionModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSave)} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="p-6 space-y-4">
           {/* Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -152,14 +155,27 @@ export function TransactionModal({
               )}
             >
               <option value="">{t.transactions.selectCategory}</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
+              {filteredCategories.map((cat) => (
+                <option key={cat.id} value={cat.name}>{cat.name}</option>
               ))}
             </select>
             {errors.category && <p className="mt-1 text-xs text-red-500">{errors.category.message}</p>}
           </div>
+
+          {/* Partners */}
+          {partners.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                {t.transactions.selectPartner}
+              </label>
+              <PartnerMultiSelect
+                partners={partners}
+                selected={selectedPartnerIds}
+                onChange={setSelectedPartnerIds}
+                placeholder={t.transactions.selectPartner}
+              />
+            </div>
+          )}
 
           {/* Description */}
           <div>

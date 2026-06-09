@@ -24,6 +24,7 @@ export const translations = {
       users: 'Users',
       roles: 'Roles',
       categories: 'Categories',
+      partners: 'Partners',
       auditLogs: 'Audit Logs',
       notifications: 'Notifications',
       myProfile: 'My Profile',
@@ -94,6 +95,8 @@ export const translations = {
       noCompany: 'No company selected',
       noCompanyDesc: 'Super admins manage the platform. Transactions belong to individual companies.',
       export: 'Export',
+      partner: 'Partner',
+      selectPartner: 'Partner (optional)',
     },
     reports: {
       title: 'Reports',
@@ -196,6 +199,16 @@ export const translations = {
         canViewAuditLogs: 'Access activity audit logs',
         canManageUsers: 'Add and remove company users',
       },
+    },
+    partners: {
+      title: 'Partners',
+      subtitle: 'Manage partners and investors for',
+      addPartner: 'Add Partner',
+      partnerName: 'Partner name...',
+      noPartners: 'No partners yet',
+      noPartnersDesc: 'Add partners to tag them on transactions',
+      accessDeniedDesc: 'Only company admins can manage partners.',
+      selectPartner: 'Partner (optional)',
     },
     categories: {
       title: 'Categories',

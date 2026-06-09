@@ -53,7 +53,8 @@ service cloud.firestore {
     match /companies/{companyId} {
       allow get:    if isAuth() && (isSuperAdmin() || myCompany() == companyId);
       allow list:   if isSuperAdmin();
-      allow create, update, delete: if isSuperAdmin();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (myRole() == 'admin' && myCompany() == companyId);
     }
 
     // ── Transactions ──────────────────────────────────────────────────────────
@@ -93,6 +94,24 @@ service cloud.firestore {
     match /notification_settings/{settingsId} {
       allow read, write: if isAuth() && uid() == settingsId;
       allow read: if isSuperAdmin();
+    }
+
+    // ── Partners ──────────────────────────────────────────────────────────────
+
+    match /partners/{partnerId} {
+      allow get:  if isAuth() && (isSuperAdmin() || resource.data.companyId == myCompany());
+      allow list: if isAuth();
+      allow create: if myRole() == 'admin' && request.resource.data.companyId == myCompany();
+      allow update, delete: if myRole() == 'admin' && resource.data.companyId == myCompany();
+    }
+
+    // ── Categories ────────────────────────────────────────────────────────────
+
+    match /categories/{categoryId} {
+      allow get:  if isAuth() && (isSuperAdmin() || resource.data.companyId == myCompany());
+      allow list: if isAuth();
+      allow create: if myRole() == 'admin' && request.resource.data.companyId == myCompany();
+      allow update, delete: if myRole() == 'admin' && resource.data.companyId == myCompany();
     }
 
     // ── Company Roles ─────────────────────────────────────────────────────────

@@ -75,10 +75,30 @@ export interface Company {
   subscriptionExpiresAt: Date | null;
   status: CompanyStatus;
   adminId: string;
-  incomeCategories?: string[];
-  expenseCategories?: string[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface Category {
+  id: string;
+  companyId: string;
+  name: string;
+  type: TransactionType;
+  createdAt: Date;
+}
+
+export interface Partner {
+  id: string;
+  companyId: string;
+  name: string;
+  createdAt: Date;
+}
+
+export interface SubCompany {
+  id: string;
+  companyId: string;
+  name: string;
+  createdAt: Date;
 }
 
 export interface Transaction {
@@ -91,6 +111,8 @@ export interface Transaction {
   date: Date;
   createdBy: string;
   createdByName: string;
+  partnerIds?: string[];
+  partnerNames?: string[];
   attachmentUrl?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -155,8 +177,6 @@ export const TRANSACTION_CATEGORIES = {
   income: [
     'Sales',
     'Service Revenue',
-    'Investment Returns',
-    'Rental Income',
     'Consulting',
     'Other Income',
   ],
@@ -164,13 +184,6 @@ export const TRANSACTION_CATEGORIES = {
     'Salaries',
     'Rent',
     'Utilities',
-    'Marketing',
-    'Equipment',
-    'Travel',
-    'Software',
-    'Office Supplies',
-    'Insurance',
-    'Maintenance',
     'Other Expense',
   ],
 } as const;

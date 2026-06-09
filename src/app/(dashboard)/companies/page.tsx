@@ -19,6 +19,7 @@ import {
   createSubscriptionPayment,
   createNotification,
   createCompanyRole,
+  createCategory,
 } from '@/lib/firebase/firestore';
 import type { Company } from '@/types';
 import { SUBSCRIPTION_PLANS, TRANSACTION_CATEGORIES, DEFAULT_ROLE_PERMISSIONS } from '@/types';
@@ -91,9 +92,17 @@ export default function CompaniesPage() {
         subscriptionExpiresAt: expiresAt,
         status: 'active',
         adminId: adminUid,
-        incomeCategories: [...TRANSACTION_CATEGORIES.income],
-        expenseCategories: [...TRANSACTION_CATEGORIES.expense],
       });
+
+      // Seed default categories for the new company
+      await Promise.all([
+        ...TRANSACTION_CATEGORIES.income.map((name) =>
+          createCategory({ companyId, name, type: 'income' })
+        ),
+        ...TRANSACTION_CATEGORIES.expense.map((name) =>
+          createCategory({ companyId, name, type: 'expense' })
+        ),
+      ]);
 
       await createCompanyRole({
         companyId,

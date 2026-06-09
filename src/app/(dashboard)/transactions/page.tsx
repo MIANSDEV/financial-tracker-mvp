@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus, Filter, Download, Search, Trash2, Pencil, ArrowUpDown } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Filter, Download, Search, Trash2, Pencil, ArrowUpDown, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TransactionModal } from '@/components/transactions/transaction-modal';
+import { PartnerMultiSelect } from '@/components/ui/partner-multi-select';
 import { useAuthStore } from '@/store/auth';
 import {
   getTransactions,
@@ -14,9 +15,12 @@ import {
   deleteTransaction,
   createNotification,
   createAuditLog,
+  getCompanyCategories,
+  getCompanyPartners,
 } from '@/lib/firebase/firestore';
 import { formatCurrency, formatDate, exportToCSV } from '@/lib/utils';
-import type { Transaction } from '@/types';
+import { format } from 'date-fns';
+import type { Transaction, Category, Partner } from '@/types';
 import toast from 'react-hot-toast';
 import { usePermissions } from '@/lib/permissions';
 import { useT } from '@/lib/i18n/use-t';
@@ -24,11 +28,23 @@ import { cn } from '@/lib/utils';
 
 type FilterType = 'all' | 'income' | 'expense';
 
+const emptyQuick = () => ({
+  type: 'income' as 'income' | 'expense',
+  description: '',
+  category: '',
+  amount: '',
+  date: format(new Date(), 'yyyy-MM-dd'),
+});
+
 export default function TransactionsPage() {
   const { user, company } = useAuthStore();
   const perms = usePermissions();
   const t = useT();
+  const descRef = useRef<HTMLInputElement>(null);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -37,95 +53,120 @@ export default function TransactionsPage() {
   const [filterCategory, setFilterCategory] = useState('');
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [quick, setQuick] = useState(emptyQuick);
+  const [quickPartnerIds, setQuickPartnerIds] = useState<string[]>([]);
 
   const fetchTransactions = async () => {
-    if (!company?.id) {
-      setLoading(false);
-      return;
-    }
+    if (!company?.id) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getTransactions(company.id);
-      setTransactions(data);
+      const [txResult, catResult, partnerResult] = await Promise.allSettled([
+        getTransactions(company.id),
+        getCompanyCategories(company.id),
+        getCompanyPartners(company.id),
+      ]);
+      if (txResult.status === 'fulfilled') setTransactions(txResult.value);
+      if (catResult.status === 'fulfilled') setCategories(catResult.value);
+      if (partnerResult.status === 'fulfilled') setPartners(partnerResult.value);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [company?.id]);
+  useEffect(() => { fetchTransactions(); }, [company?.id]);
 
-  const filtered = transactions.filter((t) => {
-    if (filterType !== 'all' && t.type !== filterType) return false;
-    if (filterCategory && t.category !== filterCategory) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!t.description.toLowerCase().includes(q) && !t.category.toLowerCase().includes(q)) return false;
+  const quickCategories = categories.filter((c) => c.type === quick.type);
+
+  const handleQuickAdd = async () => {
+    const amount = parseFloat(quick.amount);
+    if (!quick.description.trim() || !quick.category || !amount || amount <= 0) {
+      toast.error('Fill in description, category and amount');
+      return;
     }
-    return true;
-  });
-
-  const allCategories = Array.from(new Set(transactions.map((t) => t.category)));
-
-  const handleSave = async (data: {
-    type: 'income' | 'expense';
-    amount: number;
-    category: string;
-    description: string;
-    date: string;
-  }) => {
     if (!user || !company) return;
     setSaving(true);
     try {
-      if (editTarget) {
-        await updateTransaction(editTarget.id, {
-          ...data,
-          date: new Date(data.date),
-        });
-        await createAuditLog({
-          companyId: company.id,
-          userId: user.id,
-          userName: user.name,
-          action: 'UPDATE',
-          resource: 'transaction',
-          resourceId: editTarget.id,
-          details: data,
-        });
-        toast.success('Transaction updated');
-      } else {
-        const txnId = await createTransaction({
-          ...data,
-          date: new Date(data.date),
-          companyId: company.id,
-          createdBy: user.id,
-          createdByName: user.name,
-        });
-        await createNotification({
+      const selectedPartners = partners.filter((p) => quickPartnerIds.includes(p.id));
+      const txnId = await createTransaction({
+        type: quick.type,
+        description: quick.description.trim(),
+        category: quick.category,
+        amount,
+        date: new Date(quick.date),
+        companyId: company.id,
+        createdBy: user.id,
+        createdByName: user.name,
+        ...(selectedPartners.length > 0 && {
+          partnerIds: selectedPartners.map((p) => p.id),
+          partnerNames: selectedPartners.map((p) => p.name),
+        }),
+      });
+      await Promise.all([
+        createNotification({
           userId: user.id,
           companyId: company.id,
-          title: `${data.type === 'income' ? 'Income' : 'Expense'} added`,
-          message: `${data.description} — ${formatCurrency(data.amount)}`,
+          title: `${quick.type === 'income' ? 'Income' : 'Expense'} added`,
+          message: `${quick.description.trim()} — ${formatCurrency(amount)}`,
           type: 'activity',
           read: false,
           timestamp: new Date(),
-        });
-        await createAuditLog({
+        }),
+        createAuditLog({
           companyId: company.id,
           userId: user.id,
           userName: user.name,
           action: 'CREATE',
           resource: 'transaction',
           resourceId: txnId,
-          details: data,
-        });
-        toast.success('Transaction added');
-      }
+          details: quick,
+        }),
+      ]);
+      // keep type + date, reset the rest so user can add the next one fast
+      setQuick((prev) => ({ ...emptyQuick(), type: prev.type, date: prev.date }));
+      setQuickPartnerIds([]);
+      setTimeout(() => descRef.current?.focus(), 0);
+      fetchTransactions();
+      toast.success('Transaction added');
+    } catch {
+      toast.error('Failed to add transaction');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditSave = async (data: {
+    type: 'income' | 'expense';
+    amount: number;
+    category: string;
+    description: string;
+    date: string;
+    partnerIds: string[];
+  }) => {
+    if (!user || !company || !editTarget) return;
+    setSaving(true);
+    const selectedPartners = partners.filter((p) => data.partnerIds.includes(p.id));
+    try {
+      await updateTransaction(editTarget.id, {
+        ...data,
+        date: new Date(data.date),
+        partnerIds: selectedPartners.map((p) => p.id),
+        partnerNames: selectedPartners.map((p) => p.name),
+      });
+      await createAuditLog({
+        companyId: company.id,
+        userId: user.id,
+        userName: user.name,
+        action: 'UPDATE',
+        resource: 'transaction',
+        resourceId: editTarget.id,
+        details: data,
+      });
+      toast.success('Transaction updated');
       setModalOpen(false);
       setEditTarget(null);
       fetchTransactions();
     } catch {
-      toast.error('Failed to save transaction');
+      toast.error('Failed to update transaction');
     } finally {
       setSaving(false);
     }
@@ -154,20 +195,31 @@ export default function TransactionsPage() {
 
   const handleExport = () => {
     exportToCSV(
-      filtered.map((t) => ({
-        Date: formatDate(t.date),
-        Type: t.type,
-        Category: t.category,
-        Description: t.description,
-        Amount: t.amount,
-        'Added By': t.createdByName,
+      filtered.map((tx) => ({
+        Date: formatDate(tx.date),
+        Type: tx.type,
+        Category: tx.category,
+        Description: tx.description,
+        Amount: tx.amount,
+        'Added By': tx.createdByName,
       })),
       'transactions'
     );
   };
 
-  const totalIncome = filtered.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const totalExpense = filtered.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const filtered = transactions.filter((tx) => {
+    if (filterType !== 'all' && tx.type !== filterType) return false;
+    if (filterCategory && tx.category !== filterCategory) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!tx.description.toLowerCase().includes(q) && !tx.category.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const allCategories = Array.from(new Set(transactions.map((tx) => tx.category)));
+  const totalIncome = filtered.filter((tx) => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0);
+  const totalExpense = filtered.filter((tx) => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
 
   if (!company?.id) {
     return (
@@ -180,7 +232,8 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.transactions.title}</h1>
@@ -188,17 +241,92 @@ export default function TransactionsPage() {
             {filtered.length} transaction{filtered.length !== 1 ? 's' : ''} · Income: {formatCurrency(totalIncome)} · Expense: {formatCurrency(totalExpense)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} leftIcon={<Download className="w-4 h-4" />}>
-            {t.transactions.export}
-          </Button>
-          {perms.canCreateTransactions && (
-            <Button size="sm" onClick={() => { setEditTarget(null); setModalOpen(true); }} leftIcon={<Plus className="w-4 h-4" />}>
-              {t.transactions.add}
-            </Button>
-          )}
-        </div>
+        <Button variant="outline" size="sm" onClick={handleExport} leftIcon={<Download className="w-4 h-4" />}>
+          {t.transactions.export}
+        </Button>
       </div>
+
+      {/* Quick-add form */}
+      {perms.canCreateTransactions && (
+        <Card>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            Quick Add
+          </p>
+
+          {/* Type toggle */}
+          <div className="flex gap-2 mb-3">
+            {(['income', 'expense'] as const).map((type) => (
+              <button
+                key={type}
+                onClick={() => setQuick((p) => ({ ...p, type, category: '' }))}
+                className={cn(
+                  'flex-1 py-2 rounded-lg text-sm font-medium capitalize transition-all border-2',
+                  quick.type === type
+                    ? type === 'income'
+                      ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                      : 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                )}
+              >
+                {type === 'income' ? '↑ ' : '↓ '}{type === 'income' ? t.transactions.income : t.transactions.expense}
+              </button>
+            ))}
+          </div>
+
+          {/* Fields row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-2">
+            <input
+              ref={descRef}
+              value={quick.description}
+              onChange={(e) => setQuick((p) => ({ ...p, description: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+              placeholder={t.transactions.description}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <select
+              value={quick.category}
+              onChange={(e) => setQuick((p) => ({ ...p, category: e.target.value }))}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="">{t.transactions.selectCategory}</option>
+              {quickCategories.map((c) => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+            <PartnerMultiSelect
+              partners={partners}
+              selected={quickPartnerIds}
+              onChange={setQuickPartnerIds}
+              placeholder={t.transactions.selectPartner}
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={quick.amount}
+              onChange={(e) => setQuick((p) => ({ ...p, amount: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+              placeholder={t.transactions.amount}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <input
+              type="date"
+              value={quick.date}
+              onChange={(e) => setQuick((p) => ({ ...p, date: e.target.value }))}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          <Button
+            onClick={handleQuickAdd}
+            loading={saving}
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="w-full sm:w-auto"
+          >
+            Add Transaction
+          </Button>
+        </Card>
+      )}
 
       {/* Filters */}
       <Card>
@@ -212,9 +340,8 @@ export default function TransactionsPage() {
               className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
-
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <Filter className="w-4 h-4 text-gray-400 shrink-0" />
             <div className="flex gap-1">
               {(['all', 'income', 'expense'] as const).map((type) => (
                 <button
@@ -231,7 +358,6 @@ export default function TransactionsPage() {
                 </button>
               ))}
             </div>
-
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
@@ -269,6 +395,7 @@ export default function TransactionsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.date}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.description}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.category}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.partner}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.type}</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.transactions.amount}</th>
                   {(perms.canEditTransactions || perms.canDeleteTransactions) && <th className="px-6 py-3" />}
@@ -286,6 +413,19 @@ export default function TransactionsPage() {
                     </td>
                     <td className="px-6 py-3.5">
                       <Badge variant="default">{tx.category}</Badge>
+                    </td>
+                    <td className="px-6 py-3.5">
+                      {tx.partnerNames?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {tx.partnerNames.map((name) => (
+                            <span key={name} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-700 text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-3.5">
                       <Badge variant={tx.type === 'income' ? 'success' : 'danger'}>
@@ -345,14 +485,15 @@ export default function TransactionsPage() {
         )}
       </Card>
 
+      {/* Edit modal */}
       <TransactionModal
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditTarget(null); }}
-        onSave={handleSave}
+        onSave={handleEditSave}
         transaction={editTarget}
         loading={saving}
-        incomeCategories={company?.incomeCategories}
-        expenseCategories={company?.expenseCategories}
+        categories={categories}
+        partners={partners}
       />
     </div>
   );

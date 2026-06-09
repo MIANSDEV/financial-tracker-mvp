@@ -23,6 +23,8 @@ import { db } from './config';
 import type {
   User,
   Company,
+  Category,
+  Partner,
   Transaction,
   Notification,
   NotificationSettings,
@@ -135,19 +137,82 @@ export async function updateCompany(companyId: string, data: Partial<Company>) {
 }
 
 export async function deleteCompany(companyId: string) {
-  // Remove all user documents belonging to this company
-  const usersSnap = await getDocs(
-    query(collection(db, 'users'), where('companyId', '==', companyId))
-  );
-  await Promise.all(usersSnap.docs.map((d) => deleteDoc(d.ref)));
-
-  // Remove all custom roles for this company
-  const rolesSnap = await getDocs(
-    query(collection(db, 'company_roles'), where('companyId', '==', companyId))
-  );
-  await Promise.all(rolesSnap.docs.map((d) => deleteDoc(d.ref)));
-
+  const [usersSnap, rolesSnap, categoriesSnap, partnersSnap] = await Promise.all([
+    getDocs(query(collection(db, 'users'), where('companyId', '==', companyId))),
+    getDocs(query(collection(db, 'company_roles'), where('companyId', '==', companyId))),
+    getDocs(query(collection(db, 'categories'), where('companyId', '==', companyId))),
+    getDocs(query(collection(db, 'partners'), where('companyId', '==', companyId))),
+  ]);
+  await Promise.all([
+    ...usersSnap.docs.map((d) => deleteDoc(d.ref)),
+    ...rolesSnap.docs.map((d) => deleteDoc(d.ref)),
+    ...categoriesSnap.docs.map((d) => deleteDoc(d.ref)),
+    ...partnersSnap.docs.map((d) => deleteDoc(d.ref)),
+  ]);
   await deleteDoc(doc(db, 'companies', companyId));
+}
+
+// ── Categories ────────────────────────────────────────────────────────────────
+
+export async function getCompanyCategories(companyId: string): Promise<Category[]> {
+  const q = query(
+    collection(db, 'categories'),
+    where('companyId', '==', companyId)
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return { ...data, id: d.id, createdAt: toDate(data.createdAt) } as Category;
+    })
+    .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+}
+
+export async function createCategory(
+  data: Omit<Category, 'id' | 'createdAt'>
+): Promise<string> {
+  const ref = await addDoc(collection(db, 'categories'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateCategory(categoryId: string, name: string) {
+  await updateDoc(doc(db, 'categories', categoryId), { name });
+}
+
+export async function deleteCategory(categoryId: string) {
+  await deleteDoc(doc(db, 'categories', categoryId));
+}
+
+// ── Partners ──────────────────────────────────────────────────────────────────
+
+export async function getCompanyPartners(companyId: string): Promise<Partner[]> {
+  const q = query(collection(db, 'partners'), where('companyId', '==', companyId));
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return { ...data, id: d.id, createdAt: toDate(data.createdAt) } as Partner;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createPartner(data: Omit<Partner, 'id' | 'createdAt'>): Promise<string> {
+  const ref = await addDoc(collection(db, 'partners'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updatePartner(partnerId: string, name: string) {
+  await updateDoc(doc(db, 'partners', partnerId), { name });
+}
+
+export async function deletePartner(partnerId: string) {
+  await deleteDoc(doc(db, 'partners', partnerId));
 }
 
 // ── Transactions ─────────────────────────────────────────────────────────────
