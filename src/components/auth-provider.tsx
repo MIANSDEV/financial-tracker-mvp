@@ -5,7 +5,6 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { getUser, getCompany, getCompanyRoles } from '@/lib/firebase/firestore';
 import { useAuthStore } from '@/store/auth';
-import { setupForegroundMessaging } from '@/lib/firebase/messaging';
 import toast from 'react-hot-toast';
 
 function buildFallbackUser(firebaseUser: { uid: string; displayName?: string | null; email?: string | null }) {
@@ -30,10 +29,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Mark loading=true at the start of every auth check so consumers
-      // (e.g. the login page redirect effect) wait until the entire flow
-      // — including the company fetch — has completed before acting.
-      setLoading(true);
+      // Only show the loading spinner if we have no cached user data.
+      // On return visits the UI renders from localStorage instantly;
+      // Firebase validates the session silently in the background.
+      if (!useAuthStore.getState().user) setLoading(true);
 
       try {
         const TIMED_OUT = Symbol('timeout');
@@ -94,14 +93,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setupForegroundMessaging(({ title, body }) => {
-      toast(
-        <div>
-          <p className="font-semibold">{title}</p>
-          <p className="text-sm text-gray-600">{body}</p>
-        </div>,
-        { duration: 6000 }
-      );
+    // Lazy-load Firebase Messaging — not in the critical bundle path
+    import('@/lib/firebase/messaging').then(({ setupForegroundMessaging }) => {
+      setupForegroundMessaging(({ title, body }) => {
+        toast(
+          <div>
+            <p className="font-semibold">{title}</p>
+            <p className="text-sm text-gray-600">{body}</p>
+          </div>,
+          { duration: 6000 }
+        );
+      });
     });
   }, []);
 

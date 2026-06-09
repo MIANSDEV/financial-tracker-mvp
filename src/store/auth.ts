@@ -30,6 +30,13 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-store',
       partialize: (state) => ({ user: state.user, company: state.company }),
+      onRehydrateStorage: () => (state) => {
+        // If localStorage has a cached user, render content immediately.
+        // Firebase will re-validate the session silently in the background.
+        if (state?.user) {
+          state.loading = false;
+        }
+      },
     }
   )
 );

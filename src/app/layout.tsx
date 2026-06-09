@@ -42,6 +42,14 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Establish early connections to Firebase/Google backends */}
+        <link rel="preconnect" href="https://firestore.googleapis.com" />
+        <link rel="preconnect" href="https://identitytoolkit.googleapis.com" />
+        <link rel="preconnect" href="https://securetoken.googleapis.com" />
+        <link rel="dns-prefetch" href="https://www.gstatic.com" />
+        <link rel="dns-prefetch" href="https://fcm.googleapis.com" />
+      </head>
       <body className={inter.className}>
         {/* Capture beforeinstallprompt before React hydrates so the PWA
             install banner doesn't miss the event when mounting late */}
