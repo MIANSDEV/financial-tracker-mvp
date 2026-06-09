@@ -107,6 +107,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // When a new service worker takes control (skipWaiting + clientsClaim),
+    // reload so the running tab gets the freshly deployed code.
+    const handleControllerChange = () => window.location.reload();
+    navigator.serviceWorker?.addEventListener('controllerchange', handleControllerChange);
+
+    // Force the browser to check for a SW update whenever the tab becomes visible.
+    // Without this the browser only checks on page load (could be >24 h stale).
+    const checkForUpdate = () => {
+      if (document.visibilityState === 'visible') {
+        navigator.serviceWorker?.getRegistration().then((reg) => reg?.update());
+      }
+    };
+    document.addEventListener('visibilitychange', checkForUpdate);
+
+    // After 5 min in the background, reload on return so Firestore data is fresh.
+    let hiddenAt = 0;
+    const STALE_MS = 5 * 60 * 1000;
+    const handleStale = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+      } else if (hiddenAt > 0 && Date.now() - hiddenAt > STALE_MS) {
+        window.location.reload();
+      }
+    };
+    document.addEventListener('visibilitychange', handleStale);
+
+    return () => {
+      navigator.serviceWorker?.removeEventListener('controllerchange', handleControllerChange);
+      document.removeEventListener('visibilitychange', checkForUpdate);
+      document.removeEventListener('visibilitychange', handleStale);
+    };
+  }, []);
+
+  useEffect(() => {
     // Lazy-load Firebase Messaging — not in the critical bundle path
     import('@/lib/firebase/messaging').then(({ setupForegroundMessaging }) => {
       setupForegroundMessaging(({ title, body }) => {
