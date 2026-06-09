@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Filter, Download, Search, Trash2, Pencil, ArrowUpDown, Plus } from 'lucide-react';
+import { Download, Search, Trash2, Pencil, ArrowUpDown, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +51,7 @@ export default function TransactionsPage() {
   const [editTarget, setEditTarget] = useState<Transaction | null>(null);
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterPartner, setFilterPartner] = useState('');
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [quick, setQuick] = useState(emptyQuick);
@@ -225,9 +226,13 @@ export default function TransactionsPage() {
   const filtered = transactions.filter((tx) => {
     if (filterType !== 'all' && tx.type !== filterType) return false;
     if (filterCategory && tx.category !== filterCategory) return false;
+    if (filterPartner && !tx.partnerIds?.includes(filterPartner)) return false;
     if (search) {
       const q = search.toLowerCase();
-      if (!tx.description.toLowerCase().includes(q) && !tx.category.toLowerCase().includes(q)) return false;
+      const matchesDesc = tx.description.toLowerCase().includes(q);
+      const matchesCat = tx.category.toLowerCase().includes(q);
+      const matchesPartner = tx.partnerNames?.some((n) => n.toLowerCase().includes(q));
+      if (!matchesDesc && !matchesCat && !matchesPartner) return false;
     }
     return true;
   });
@@ -385,46 +390,93 @@ export default function TransactionsPage() {
 
       {/* Filters */}
       <Card>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t.transactions.searchPlaceholder}
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400 shrink-0" />
-            <div className="flex gap-1">
-              {(['all', 'income', 'expense'] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setFilterType(type)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors',
-                    filterType === type
-                      ? 'bg-brand-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
-                  )}
-                >
-                  {t.transactions[type]}
-                </button>
-              ))}
-            </div>
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="py-1.5 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="">{t.transactions.allCategories}</option>
-              {allCategories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+        {/* Row 1 — Search */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t.transactions.searchPlaceholder}
+            className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
         </div>
+
+        {/* Row 2 — Type toggle (full width on mobile) */}
+        <div className="flex gap-1.5 mb-3">
+          {(['all', 'income', 'expense'] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilterType(type)}
+              className={cn(
+                'flex-1 py-2 rounded-lg text-xs font-medium capitalize transition-colors',
+                filterType === type
+                  ? type === 'income'
+                    ? 'bg-green-500 text-white'
+                    : type === 'expense'
+                    ? 'bg-red-500 text-white'
+                    : 'bg-brand-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+              )}
+            >
+              {t.transactions[type]}
+            </button>
+          ))}
+        </div>
+
+        {/* Row 3 — Category + Partner selects */}
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="w-full py-2 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value="">{t.transactions.allCategories}</option>
+            {allCategories.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterPartner}
+            onChange={(e) => setFilterPartner(e.target.value)}
+            className="w-full py-2 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value="">All Partners</option>
+            {partners.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Active filter pills */}
+        {(filterType !== 'all' || filterCategory || filterPartner) && (
+          <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+            {filterType !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
+                {filterType}
+                <button onClick={() => setFilterType('all')} className="hover:text-brand-900 dark:hover:text-brand-100">×</button>
+              </span>
+            )}
+            {filterCategory && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                {filterCategory}
+                <button onClick={() => setFilterCategory('')} className="hover:text-gray-900 dark:hover:text-gray-100">×</button>
+              </span>
+            )}
+            {filterPartner && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                {partners.find((p) => p.id === filterPartner)?.name}
+                <button onClick={() => setFilterPartner('')} className="hover:text-purple-900 dark:hover:text-purple-100">×</button>
+              </span>
+            )}
+            <button
+              onClick={() => { setFilterType('all'); setFilterCategory(''); setFilterPartner(''); setSearch(''); }}
+              className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline underline-offset-2"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
       </Card>
 
       {/* Table */}

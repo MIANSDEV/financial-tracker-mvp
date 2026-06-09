@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Download, Smartphone, X, Wifi, Zap, Shield } from 'lucide-react';
 
+const DISMISSED_KEY = 'app-footer-dismissed';
+
 function detectAndroid() {
   if (typeof navigator === 'undefined') return false;
   return /Android/i.test(navigator.userAgent);
@@ -114,7 +116,7 @@ function AndroidInstallModal({ onClose }: { onClose: () => void }) {
 }
 
 export function AppFooter() {
-  const [isInstalled, setIsInstalled] = useState(true);
+  const [visible, setVisible] = useState(false);
   const [canInstallNative, setCanInstallNative] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [showAndroidModal, setShowAndroidModal] = useState(false);
@@ -123,18 +125,27 @@ export function AppFooter() {
     const standalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as { standalone?: boolean }).standalone === true;
-    setIsInstalled(standalone);
+    if (standalone) return;
+
+    // Don't show if user dismissed previously
+    if (localStorage.getItem(DISMISSED_KEY) === '1') return;
+
     setIsAndroid(detectAndroid());
 
     if (window.__pwaPrompt) setCanInstallNative(true);
     const handler = () => setCanInstallNative(true);
     window.addEventListener('beforeinstallprompt', handler);
+
+    setVisible(true);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  if (isInstalled) return null;
+  const dismiss = () => {
+    localStorage.setItem(DISMISSED_KEY, '1');
+    setVisible(false);
+  };
 
-  // Nothing to show if no actions available
+  if (!visible) return null;
   if (!isAndroid && !canInstallNative) return null;
 
   const handleInstallApp = () => {
@@ -150,11 +161,10 @@ export function AppFooter() {
     <>
       {showAndroidModal && <AndroidInstallModal onClose={() => setShowAndroidModal(false)} />}
 
-      <footer className="border-t border-gray-100 dark:border-gray-800/60 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm px-4 lg:px-6 py-2 flex items-center justify-between gap-3 shrink-0">
-        <p className="text-[11px] text-gray-400 dark:text-gray-600 hidden sm:block select-none tracking-wide">
+      <footer className="border-t border-gray-100 dark:border-gray-800/60 bg-white dark:bg-gray-900 px-4 lg:px-6 py-2 flex items-center gap-2 shrink-0">
+        <p className="text-[11px] text-gray-400 dark:text-gray-600 hidden sm:block select-none tracking-wide flex-1">
           Financial Tracker · Mians IT Farm
         </p>
-
         <div className="flex items-center gap-2 ml-auto">
           {/* Android: open install modal */}
           {isAndroid && !canInstallNative && (
@@ -167,7 +177,7 @@ export function AppFooter() {
             </button>
           )}
 
-          {/* Native PWA install prompt available (Chrome on Android/Desktop) */}
+          {/* Native PWA install prompt */}
           {canInstallNative && (
             <button
               onClick={handleInstallApp}
@@ -179,6 +189,15 @@ export function AppFooter() {
             </button>
           )}
         </div>
+
+        {/* Dismiss */}
+        <button
+          onClick={dismiss}
+          className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
+          title="Dismiss"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
       </footer>
     </>
   );
