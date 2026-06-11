@@ -71,6 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = userResult;
         setUser(userData);
 
+        // Auto-register FCM token so push works without visiting Settings.
+        // If permission is already granted this is silent; if 'default' the
+        // browser shows the one-time permission dialog.
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'denied') {
+          import('@/lib/firebase/messaging').then(({ requestNotificationPermission }) => {
+            requestNotificationPermission(userData.id).catch(() => {});
+          });
+        }
+
         if (userData.companyId) {
           const [companyResult, rolesResult] = await Promise.allSettled([
             getCompany(userData.companyId),
@@ -146,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Lazy-load Firebase Messaging — not in the critical bundle path
     import('@/lib/firebase/messaging').then(({ setupForegroundMessaging }) => {
       setupForegroundMessaging(({ title, body }) => {
+        // In-app toast
         toast(
           <div>
             <p className="font-semibold">{title}</p>
@@ -153,6 +163,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           </div>,
           { duration: 6000 }
         );
+
+        // Native system notification (with sound) even while app is open
+        if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistration().then((reg) => {
+            reg?.showNotification(title, {
+              body,
+              icon: '/icons/icon-192x192.png',
+              badge: '/icons/badge-72x72.png',
+              tag: 'foreground',
+              renotify: true,
+            } as NotificationOptions);
+          });
+        }
       });
     });
   }, []);

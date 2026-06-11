@@ -37,6 +37,11 @@ export async function POST(req: NextRequest) {
     const settingsSnap = await adminDb.collection('notification_settings').doc(userId).get();
     const settings = settingsSnap.data();
 
+    // No settings document means the user has never set up push — skip
+    if (!settings) {
+      return NextResponse.json({ success: true, push: false, reason: 'no_settings' });
+    }
+
     // Treat missing pushEnabled as true (old documents didn't have this field)
     if (settings.pushEnabled === false) {
       return NextResponse.json({ success: true, push: false, reason: 'push_disabled' });
