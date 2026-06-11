@@ -86,6 +86,7 @@ export default function ReportsPage() {
         Category: tx.category,
         Description: tx.description,
         Amount: tx.amount,
+        Partners: tx.partnerNames?.join(', ') || '',
       })),
       `${type}-report-${format(now, 'yyyy-MM-dd')}`
     );

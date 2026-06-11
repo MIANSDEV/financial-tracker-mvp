@@ -229,6 +229,7 @@ export default function TransactionsPage() {
         Category: tx.category,
         Description: tx.description,
         Amount: tx.amount,
+        Partners: tx.partnerNames?.join(', ') || '',
         'Added By': tx.createdByName,
       })),
       `transactions-${type}`
