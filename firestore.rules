@@ -101,8 +101,8 @@ service cloud.firestore {
     match /partners/{partnerId} {
       allow get:  if isAuth() && (isSuperAdmin() || resource.data.companyId == myCompany());
       allow list: if isAuth();
-      allow create: if myRole() == 'admin' && request.resource.data.companyId == myCompany();
-      allow update, delete: if myRole() == 'admin' && resource.data.companyId == myCompany();
+      allow create: if isSuperAdmin() || (myRole() == 'admin' && request.resource.data.companyId == myCompany());
+      allow update, delete: if isSuperAdmin() || (myRole() == 'admin' && resource.data.companyId == myCompany());
     }
 
     // ── Categories ────────────────────────────────────────────────────────────
@@ -110,8 +110,8 @@ service cloud.firestore {
     match /categories/{categoryId} {
       allow get:  if isAuth() && (isSuperAdmin() || resource.data.companyId == myCompany());
       allow list: if isAuth();
-      allow create: if myRole() == 'admin' && request.resource.data.companyId == myCompany();
-      allow update, delete: if myRole() == 'admin' && resource.data.companyId == myCompany();
+      allow create: if isSuperAdmin() || (myRole() == 'admin' && request.resource.data.companyId == myCompany());
+      allow update, delete: if isSuperAdmin() || (myRole() == 'admin' && resource.data.companyId == myCompany());
     }
 
     // ── Company Roles ─────────────────────────────────────────────────────────
