@@ -20,6 +20,7 @@ import {
   Tag,
   Download,
   Handshake,
+  GitBranch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth';
@@ -28,7 +29,7 @@ import { useT } from '@/lib/i18n/use-t';
 import type { RolePermissions } from '@/types';
 
 interface NavItem {
-  labelKey: 'dashboard' | 'transactions' | 'reports' | 'companies' | 'subscriptions' | 'users' | 'roles' | 'categories' | 'partners' | 'auditLogs' | 'notifications' | 'myProfile' | 'settings';
+  labelKey: 'dashboard' | 'transactions' | 'reports' | 'companies' | 'subscriptions' | 'users' | 'roles' | 'categories' | 'partners' | 'branches' | 'auditLogs' | 'notifications' | 'myProfile' | 'settings';
   href: string;
   icon: React.ElementType;
   // 'staff' means visible to custom roles (filtered further by permissionKey)
@@ -47,6 +48,7 @@ const navItems: NavItem[] = [
   { labelKey: 'roles',         href: '/roles',         icon: Shield,          roles: ['admin'] },
   { labelKey: 'categories',    href: '/categories',    icon: Tag,             roles: ['admin'] },
   { labelKey: 'partners',      href: '/partners',      icon: Handshake,       roles: ['admin'] },
+  { labelKey: 'branches',      href: '/branches',      icon: GitBranch,       roles: ['admin'] },
   { labelKey: 'auditLogs',     href: '/audit-logs',    icon: FileText,        roles: ['admin', 'staff'], permissionKey: 'canViewAuditLogs' },
   { labelKey: 'notifications', href: '/notifications', icon: Bell,            roles: ['super_admin', 'admin', 'staff'] },
   { labelKey: 'myProfile',     href: '/profile',       icon: UserCircle,      roles: ['super_admin', 'admin', 'staff'] },

@@ -19,10 +19,10 @@ import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { SetupBanner } from '@/components/ui/setup-banner';
 import { useAuthStore } from '@/store/auth';
-import { getTransactions } from '@/lib/firebase/firestore';
+import { getTransactions, getCompanyBranches } from '@/lib/firebase/firestore';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import type { Transaction, ChartDataPoint } from '@/types';
+import type { Transaction, ChartDataPoint, Branch } from '@/types';
 import {
   subMonths,
   startOfMonth,
@@ -81,7 +81,9 @@ export default function DashboardPage() {
   const { user, company } = useAuthStore();
   const t = useT();
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchFilter, setBranchFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [rangeMode, setRangeMode] = useState<RangeMode>('monthly');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -90,8 +92,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!company?.id) { setLoading(false); return; }
-    getTransactions(company.id).then(setTransactions).finally(() => setLoading(false));
+    Promise.allSettled([
+      getTransactions(company.id),
+      getCompanyBranches(company.id),
+    ]).then(([txResult, branchResult]) => {
+      if (txResult.status === 'fulfilled') setAllTransactions(txResult.value);
+      if (branchResult.status === 'fulfilled') setBranches(branchResult.value);
+    }).finally(() => setLoading(false));
   }, [company?.id]);
+
+  const transactions = useMemo(
+    () => (branchFilter ? allTransactions.filter((tx) => tx.branchId === branchFilter) : allTransactions),
+    [allTransactions, branchFilter]
+  );
+  const branchLabel = branches.find((b) => b.id === branchFilter)?.name;
 
   const now = new Date();
   const hour = now.getHours();
@@ -184,11 +198,23 @@ export default function DashboardPage() {
             {greet}, {user?.name?.split(' ')[0]} 👋
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {company?.name || ''} · {rangeLabel}
+            {company?.name || ''}{branchLabel ? ` · ${branchLabel}` : ''} · {rangeLabel}
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {branches.length > 0 && (
+            <select
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              className="py-1.5 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="">{t.transactions.allBranches}</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          )}
           {/* Mode toggle */}
           <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             {(['monthly', 'yearly', 'custom'] as RangeMode[]).map((mode) => (

@@ -105,6 +105,15 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin() || (myRole() == 'admin' && resource.data.companyId == myCompany());
     }
 
+    // ── Branches ──────────────────────────────────────────────────────────────
+
+    match /branches/{branchId} {
+      allow get:  if isAuth() && (isSuperAdmin() || resource.data.companyId == myCompany());
+      allow list: if isAuth();
+      allow create: if isSuperAdmin() || (myRole() == 'admin' && request.resource.data.companyId == myCompany());
+      allow update, delete: if isSuperAdmin() || (myRole() == 'admin' && resource.data.companyId == myCompany());
+    }
+
     // ── Categories ────────────────────────────────────────────────────────────
 
     match /categories/{categoryId} {

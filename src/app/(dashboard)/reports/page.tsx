@@ -17,9 +17,9 @@ import { Download, BarChart3 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth';
-import { getTransactions } from '@/lib/firebase/firestore';
+import { getTransactions, getCompanyBranches } from '@/lib/firebase/firestore';
 import { formatCurrency, exportToCSV, formatDate } from '@/lib/utils';
-import type { Transaction } from '@/types';
+import type { Transaction, Branch } from '@/types';
 import {
   subMonths,
   startOfMonth,
@@ -32,16 +32,27 @@ import { useT } from '@/lib/i18n/use-t';
 export default function ReportsPage() {
   const { company } = useAuthStore();
   const t = useT();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchFilter, setBranchFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<3 | 6 | 12>(6);
 
   useEffect(() => {
     if (!company?.id) { setLoading(false); return; }
-    getTransactions(company.id)
-      .then(setTransactions)
-      .finally(() => setLoading(false));
+    Promise.allSettled([
+      getTransactions(company.id),
+      getCompanyBranches(company.id),
+    ]).then(([txResult, branchResult]) => {
+      if (txResult.status === 'fulfilled') setAllTransactions(txResult.value);
+      if (branchResult.status === 'fulfilled') setBranches(branchResult.value);
+    }).finally(() => setLoading(false));
   }, [company?.id]);
+
+  const transactions = branchFilter
+    ? allTransactions.filter((tx) => tx.branchId === branchFilter)
+    : allTransactions;
+  const branchLabel = branches.find((b) => b.id === branchFilter)?.name;
 
   const now = new Date();
   const monthRange = eachMonthOfInterval({ start: subMonths(now, period - 1), end: now });
@@ -86,9 +97,10 @@ export default function ReportsPage() {
         Category: tx.category,
         Description: tx.description,
         Amount: tx.amount,
+        Branch: tx.branchName || '',
         Partners: tx.partnerNames?.join(', ') || '',
       })),
-      `${type}-report-${format(now, 'yyyy-MM-dd')}`
+      `${type}-report${branchLabel ? `-${branchLabel}` : ''}-${format(now, 'yyyy-MM-dd')}`
     );
   };
 
@@ -111,10 +123,22 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.reports.title}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {t.reports.subtitle} {company?.name}
+            {t.reports.subtitle} {company?.name}{branchLabel ? ` · ${branchLabel}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {branches.length > 0 && (
+            <select
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              className="py-1.5 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="">{t.transactions.allBranches}</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          )}
           <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             {([3, 6, 12] as const).map((p) => (
               <button

@@ -25,6 +25,7 @@ import type {
   Company,
   Category,
   Partner,
+  Branch,
   Transaction,
   Notification,
   NotificationSettings,
@@ -137,17 +138,19 @@ export async function updateCompany(companyId: string, data: Partial<Company>) {
 }
 
 export async function deleteCompany(companyId: string) {
-  const [usersSnap, rolesSnap, categoriesSnap, partnersSnap] = await Promise.all([
+  const [usersSnap, rolesSnap, categoriesSnap, partnersSnap, branchesSnap] = await Promise.all([
     getDocs(query(collection(db, 'users'), where('companyId', '==', companyId))),
     getDocs(query(collection(db, 'company_roles'), where('companyId', '==', companyId))),
     getDocs(query(collection(db, 'categories'), where('companyId', '==', companyId))),
     getDocs(query(collection(db, 'partners'), where('companyId', '==', companyId))),
+    getDocs(query(collection(db, 'branches'), where('companyId', '==', companyId))),
   ]);
   await Promise.all([
     ...usersSnap.docs.map((d) => deleteDoc(d.ref)),
     ...rolesSnap.docs.map((d) => deleteDoc(d.ref)),
     ...categoriesSnap.docs.map((d) => deleteDoc(d.ref)),
     ...partnersSnap.docs.map((d) => deleteDoc(d.ref)),
+    ...branchesSnap.docs.map((d) => deleteDoc(d.ref)),
   ]);
   await deleteDoc(doc(db, 'companies', companyId));
 }
@@ -213,6 +216,35 @@ export async function updatePartner(partnerId: string, name: string) {
 
 export async function deletePartner(partnerId: string) {
   await deleteDoc(doc(db, 'partners', partnerId));
+}
+
+// ── Branches ──────────────────────────────────────────────────────────────────
+
+export async function getCompanyBranches(companyId: string): Promise<Branch[]> {
+  const q = query(collection(db, 'branches'), where('companyId', '==', companyId));
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return { ...data, id: d.id, createdAt: toDate(data.createdAt) } as Branch;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createBranch(data: Omit<Branch, 'id' | 'createdAt'>): Promise<string> {
+  const ref = await addDoc(collection(db, 'branches'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateBranch(branchId: string, data: Partial<Pick<Branch, 'name' | 'address'>>) {
+  await updateDoc(doc(db, 'branches', branchId), data);
+}
+
+export async function deleteBranch(branchId: string) {
+  await deleteDoc(doc(db, 'branches', branchId));
 }
 
 // ── Transactions ─────────────────────────────────────────────────────────────

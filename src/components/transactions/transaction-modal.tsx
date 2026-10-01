@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PartnerMultiSelect } from '@/components/ui/partner-multi-select';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n/use-t';
-import type { Transaction, Category, Partner } from '@/types';
+import type { Transaction, Category, Partner, Branch } from '@/types';
 import { format } from 'date-fns';
 
 const schema = z.object({
@@ -25,11 +25,12 @@ type FormValues = z.infer<typeof schema>;
 interface TransactionModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: FormValues & { partnerIds: string[]; alsoAdd?: { type: 'income' | 'expense'; category: string; amount: number; date: string } }) => Promise<void>;
+  onSave: (data: FormValues & { partnerIds: string[]; branchId: string; alsoAdd?: { type: 'income' | 'expense'; category: string; amount: number; date: string } }) => Promise<void>;
   transaction?: Transaction | null;
   loading?: boolean;
   categories?: Category[];
   partners?: Partner[];
+  branches?: Branch[];
 }
 
 export function TransactionModal({
@@ -40,6 +41,7 @@ export function TransactionModal({
   loading = false,
   categories = [],
   partners = [],
+  branches = [],
 }: TransactionModalProps) {
   const {
     register,
@@ -65,6 +67,7 @@ export function TransactionModal({
   const [selectedType, setSelectedType] = useState<'income' | 'expense'>(transaction?.type ?? 'income');
   const selectedCategory = watch('category');
   const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState(transaction?.branchId ?? '');
   const [mirrorEnabled, setMirrorEnabled] = useState(false);
   const [mirrorCategory, setMirrorCategory] = useState('');
   const [mirrorAmountMode, setMirrorAmountMode] = useState<'full' | 'custom'>('full');
@@ -98,12 +101,14 @@ export function TransactionModal({
       });
       setSelectedType(transaction.type);
       setSelectedPartnerIds(transaction.partnerIds ?? []);
+      setSelectedBranchId(transaction.branchId ?? '');
       categoryMemory.income = transaction.type === 'income' ? transaction.category : '';
       categoryMemory.expense = transaction.type === 'expense' ? transaction.category : '';
     } else {
       reset({ type: 'income', date: format(new Date(), 'yyyy-MM-dd') });
       setSelectedType('income');
       setSelectedPartnerIds([]);
+      setSelectedBranchId('');
       categoryMemory.income = '';
       categoryMemory.expense = '';
     }
@@ -127,7 +132,7 @@ export function TransactionModal({
           date: mirrorDate || data.date,
         }
       : undefined;
-    return onSave({ ...data, partnerIds: selectedPartnerIds, alsoAdd });
+    return onSave({ ...data, partnerIds: selectedPartnerIds, branchId: selectedBranchId, alsoAdd });
   };
 
   return (
@@ -213,6 +218,25 @@ export function TransactionModal({
             </select>
             {errors.category && <p className="mt-1 text-xs text-red-500">{errors.category.message}</p>}
           </div>
+
+          {/* Branch */}
+          {branches.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                {t.transactions.selectBranch}
+              </label>
+              <select
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              >
+                <option value="">{t.transactions.noBranch}</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Partners */}
           {partners.length > 0 && (

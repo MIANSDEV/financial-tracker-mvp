@@ -16,11 +16,12 @@ import {
   createAuditLog,
   getCompanyCategories,
   getCompanyPartners,
+  getCompanyBranches,
 } from '@/lib/firebase/firestore';
 import { notify } from '@/lib/notify';
 import { formatCurrency, formatDate, exportToCSV } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Transaction, Category, Partner } from '@/types';
+import type { Transaction, Category, Partner, Branch } from '@/types';
 import toast from 'react-hot-toast';
 import { usePermissions } from '@/lib/permissions';
 import { useT } from '@/lib/i18n/use-t';
@@ -45,6 +46,7 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,10 +54,12 @@ export default function TransactionsPage() {
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterPartner, setFilterPartner] = useState('');
+  const [filterBranch, setFilterBranch] = useState('');
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [quick, setQuick] = useState(emptyQuick);
   const [quickPartnerIds, setQuickPartnerIds] = useState<string[]>([]);
+  const [quickBranchId, setQuickBranchId] = useState('');
   const [mirrorExpense, setMirrorExpense] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState('');
   const [mirrorAmountMode, setMirrorAmountMode] = useState<'full' | 'custom'>('full');
@@ -66,14 +70,16 @@ export default function TransactionsPage() {
     if (!company?.id) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [txResult, catResult, partnerResult] = await Promise.allSettled([
+      const [txResult, catResult, partnerResult, branchResult] = await Promise.allSettled([
         getTransactions(company.id),
         getCompanyCategories(company.id),
         getCompanyPartners(company.id),
+        getCompanyBranches(company.id),
       ]);
       if (txResult.status === 'fulfilled') setTransactions(txResult.value);
       if (catResult.status === 'fulfilled') setCategories(catResult.value);
       if (partnerResult.status === 'fulfilled') setPartners(partnerResult.value);
+      if (branchResult.status === 'fulfilled') setBranches(branchResult.value);
     } finally {
       setLoading(false);
     }
@@ -82,6 +88,12 @@ export default function TransactionsPage() {
   useEffect(() => { fetchTransactions(); }, [company?.id]);
 
   const quickCategories = categories.filter((c) => c.type === quick.type);
+
+  // Empty strings (not undefined) so an edit can clear a previously set branch via updateDoc
+  const branchPayload = (branchId: string) => {
+    const branch = branches.find((b) => b.id === branchId);
+    return { branchId: branch?.id ?? '', branchName: branch?.name ?? '' };
+  };
 
   const handleQuickAdd = async () => {
     const amount = parseFloat(quick.amount);
@@ -108,6 +120,7 @@ export default function TransactionsPage() {
         createdBy: user.id,
         createdByName: user.name,
         ...partnerPayload,
+        ...branchPayload(quickBranchId),
       };
 
       const saves: Promise<string>[] = [
@@ -163,6 +176,7 @@ export default function TransactionsPage() {
     description: string;
     date: string;
     partnerIds: string[];
+    branchId: string;
     alsoAdd?: { type: 'income' | 'expense'; category: string; amount: number; date: string };
   }) => {
     if (!user || !company || !editTarget) return;
@@ -172,8 +186,9 @@ export default function TransactionsPage() {
       ? { partnerIds: selectedPartners.map((p) => p.id), partnerNames: selectedPartners.map((p) => p.name) }
       : {};
     try {
-      const { alsoAdd: _alsoAdd, partnerIds: _partnerIds, ...txFields } = data;
-      await updateTransaction(editTarget.id, { ...txFields, date: new Date(data.date), ...partnerPayload });
+      const { alsoAdd: _alsoAdd, partnerIds: _partnerIds, branchId, ...txFields } = data;
+      const editBranch = branchPayload(branchId);
+      await updateTransaction(editTarget.id, { ...txFields, date: new Date(data.date), ...partnerPayload, ...editBranch });
 
       const jobs: Promise<unknown>[] = [
         createAuditLog({ companyId: company.id, userId: user.id, userName: user.name, action: 'UPDATE', resource: 'transaction', resourceId: editTarget.id, details: txFields }),
@@ -184,7 +199,7 @@ export default function TransactionsPage() {
         const mirrorId = await createTransaction({
           companyId: company.id, type: data.alsoAdd.type, amount: data.alsoAdd.amount,
           category: data.alsoAdd.category, description: data.description,
-          date: new Date(data.alsoAdd.date), createdBy: user.id, createdByName: user.name, ...partnerPayload,
+          date: new Date(data.alsoAdd.date), createdBy: user.id, createdByName: user.name, ...partnerPayload, ...editBranch,
         });
         jobs.push(createAuditLog({ companyId: company.id, userId: user.id, userName: user.name, action: 'CREATE', resource: 'transaction', resourceId: mirrorId, details: { ...data, type: data.alsoAdd.type, category: data.alsoAdd.category } }));
       }
@@ -229,6 +244,7 @@ export default function TransactionsPage() {
         Category: tx.category,
         Description: tx.description,
         Amount: tx.amount,
+        Branch: tx.branchName || '',
         Partners: tx.partnerNames?.join(', ') || '',
         'Added By': tx.createdByName,
       })),
@@ -240,12 +256,14 @@ export default function TransactionsPage() {
     if (filterType !== 'all' && tx.type !== filterType) return false;
     if (filterCategory && tx.category !== filterCategory) return false;
     if (filterPartner && !tx.partnerIds?.includes(filterPartner)) return false;
+    if (filterBranch && tx.branchId !== filterBranch) return false;
     if (search) {
       const q = search.toLowerCase();
       const matchesDesc = tx.description.toLowerCase().includes(q);
       const matchesCat = tx.category.toLowerCase().includes(q);
       const matchesPartner = tx.partnerNames?.some((n) => n.toLowerCase().includes(q));
-      if (!matchesDesc && !matchesCat && !matchesPartner) return false;
+      const matchesBranch = tx.branchName?.toLowerCase().includes(q);
+      if (!matchesDesc && !matchesCat && !matchesPartner && !matchesBranch) return false;
     }
     return true;
   });
@@ -337,6 +355,18 @@ export default function TransactionsPage() {
               onChange={setQuickPartnerIds}
               placeholder={t.transactions.selectPartner}
             />
+            {branches.length > 0 && (
+              <select
+                value={quickBranchId}
+                onChange={(e) => setQuickBranchId(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="">{t.transactions.selectBranch}</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            )}
             <input
               type="number"
               min="0"
@@ -498,8 +528,8 @@ export default function TransactionsPage() {
           ))}
         </div>
 
-        {/* Row 3 — Category + Partner selects */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Row 3 — Category + Partner + Branch selects */}
+        <div className={cn('grid gap-2', branches.length > 0 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2')}>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
@@ -521,10 +551,23 @@ export default function TransactionsPage() {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
+
+          {branches.length > 0 && (
+            <select
+              value={filterBranch}
+              onChange={(e) => setFilterBranch(e.target.value)}
+              className="w-full py-2 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="">{t.transactions.allBranches}</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Active filter pills */}
-        {(filterType !== 'all' || filterCategory || filterPartner) && (
+        {(filterType !== 'all' || filterCategory || filterPartner || filterBranch) && (
           <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
             {filterType !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
@@ -544,8 +587,14 @@ export default function TransactionsPage() {
                 <button onClick={() => setFilterPartner('')} className="hover:text-purple-900 dark:hover:text-purple-100">×</button>
               </span>
             )}
+            {filterBranch && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                {branches.find((b) => b.id === filterBranch)?.name}
+                <button onClick={() => setFilterBranch('')} className="hover:text-amber-900 dark:hover:text-amber-100">×</button>
+              </span>
+            )}
             <button
-              onClick={() => { setFilterType('all'); setFilterCategory(''); setFilterPartner(''); setSearch(''); }}
+              onClick={() => { setFilterType('all'); setFilterCategory(''); setFilterPartner(''); setFilterBranch(''); setSearch(''); }}
               className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline underline-offset-2"
             >
               Clear all
@@ -593,7 +642,10 @@ export default function TransactionsPage() {
                         <p className="font-medium text-gray-900 dark:text-white">{tx.description}</p>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t.transactions.addedBy} {tx.createdByName}</p>
                       </td>
-                      <td className="px-6 py-3.5"><Badge variant="default">{tx.category}</Badge></td>
+                      <td className="px-6 py-3.5">
+                        <Badge variant="default">{tx.category}</Badge>
+                        {tx.branchName && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{tx.branchName}</p>}
+                      </td>
                       <td className="px-6 py-3.5">
                         {tx.partnerNames?.length ? (
                           <div className="flex flex-wrap gap-1">
@@ -652,6 +704,9 @@ export default function TransactionsPage() {
                           {tx.type === 'income' ? t.transactions.income : t.transactions.expense}
                         </Badge>
                         <Badge variant="default">{tx.category}</Badge>
+                        {tx.branchName && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{tx.branchName}</span>
+                        )}
                         {tx.partnerNames?.map((name) => (
                           <span key={name} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">{name}</span>
                         ))}
@@ -702,6 +757,7 @@ export default function TransactionsPage() {
         loading={saving}
         categories={categories}
         partners={partners}
+        branches={branches}
       />
     </div>
   );

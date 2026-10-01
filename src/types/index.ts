@@ -94,6 +94,14 @@ export interface Partner {
   createdAt: Date;
 }
 
+export interface Branch {
+  id: string;
+  companyId: string;
+  name: string;
+  address?: string;
+  createdAt: Date;
+}
+
 export interface SubCompany {
   id: string;
   companyId: string;
@@ -113,6 +121,8 @@ export interface Transaction {
   createdByName: string;
   partnerIds?: string[];
   partnerNames?: string[];
+  branchId?: string;
+  branchName?: string;
   attachmentUrl?: string;
   createdAt: Date;
   updatedAt: Date;
