@@ -13,6 +13,9 @@
  * notification settings (the super admin login itself is always kept).
  */
 
+// Silence DEP0040 (punycode) from firebase-admin's transitive whatwg-url dependency
+process.noDeprecation = true;
+
 require('dotenv').config({ path: '.env.local' });
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');

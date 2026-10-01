@@ -5,6 +5,9 @@
  * Run: node scripts/migrate-categories.js
  */
 
+// Silence DEP0040 (punycode) from firebase-admin's transitive whatwg-url dependency
+process.noDeprecation = true;
+
 require('dotenv').config({ path: '.env.local' });
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
